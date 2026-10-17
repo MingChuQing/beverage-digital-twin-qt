@@ -18,7 +18,8 @@ class SerialMaster : public QObject {
 public:
     SerialMaster(TwinController *,const QJsonObject &,const QJsonObject &,bool automatic=true);
     bool connected() const{return m_port.isOpen()||m_test;}
-    bool busy() const{return m_pending||!m_jobs.isEmpty()||m_demo;}
+    // Background health polling must not disable operator controls between replies.
+    bool busy() const{return (m_pending&&!m_heartbeat)||!m_jobs.isEmpty()||m_demo;}
     QString portName() const{return m_portName;}
     int baudRate() const{return m_baud;}
     QString status() const;

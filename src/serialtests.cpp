@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QtEndian>
 #include <QCoreApplication>
+#include <QThread>
 #include <cstring>
 
 bool SerialPlant::selfTest(QString *error){
@@ -53,6 +54,23 @@ bool SerialPlant::selfTest(QString *error){
     QObject::connect(&plant,&SerialPlant::replyReady,&master,&SerialMaster::receiveBytes);
     int acknowledgements=master.acknowledgements();master.triggerPr("X",4);master.pump();
     if(!check(master.acknowledgements()==acknowledgements+1&&master.failures()==0,"主站回显匹配 / 往返传输失败"))return false;
+    // Hold replies so both in-flight states are observed, rather than testing
+    // only an instantaneous request/reply round trip.
+    SerialMaster polling(&senderTwin,plant.protocol(),plant.registry(),false);polling.enableTestTransport();
+    QByteArray pollRequest;QObject::connect(&polling,&SerialMaster::requestReady,[&](const QByteArray &bytes){pollRequest=bytes;});
+    const QString idleStatus=polling.status();
+    for(int i=0;i<4;++i){
+        pollRequest.clear();QThread::msleep(100);polling.pump();
+        if(!check(!pollRequest.isEmpty()&&quint8(pollRequest[1])==4&&!polling.busy()&&polling.status()==idleStatus,"后台轮询误禁用界面或导致状态闪烁"))return false;
+        polling.receiveBytes(plant.transact(pollRequest));
+        if(!check(!polling.busy()&&polling.status()==idleStatus,"轮询应答后界面状态不稳定"))return false;
+    }
+    polling.triggerPr("X",4);
+    if(!check(polling.busy(),"真实命令排队时未保护操作控件"))return false;
+    polling.pump();
+    if(!check(polling.busy()&&quint8(pollRequest[1])==6,"真实命令等待应答时未保持忙碌"))return false;
+    polling.receiveBytes(plant.transact(pollRequest));
+    if(!check(!polling.busy(),"真实命令完成后未解除忙碌"))return false;
     if(error)error->clear();
     return true;
 }

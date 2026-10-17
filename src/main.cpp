@@ -46,6 +46,13 @@ int main(int argc,char **argv){
     SerialMaster master(&twin,bus.protocol(),bus.registry());
     AiController ai(&twin,&master);
     const bool sender=args.contains("--sender");
+    if(sender&&args.contains("--ai-button-stability-test")){
+        master.enableTestTransport();
+        QObject::connect(&master,&SerialMaster::requestReady,&app,[&](const QByteArray &request){
+            QByteArray reply=request.left(2)+char(2)+Rtu::words({1});
+            QTimer::singleShot(35,&app,[&,reply]{master.receiveBytes(Rtu::seal(reply));});
+        });
+    }
     bus.setSerialMode(!sender&&!args.contains("--offline")&&!args.contains("--smoke-test"));
     std::shared_ptr<SerialMaster> hardwareMaster;
     if(args.contains("--serial-smoke-test")||args.contains("--serial-gui-test")){
@@ -81,6 +88,18 @@ int main(int argc,char **argv){
     auto window=qobject_cast<QQuickWindow*>(engine.rootObjects().first());
     if(!window)return 4;
     qInfo()<<"Demo window ready"<<window->size();
+    if(sender&&args.contains("--ai-button-stability-test")){
+        auto stable=std::make_shared<bool>(true);auto samples=std::make_shared<int>(0);
+        auto button=window->findChild<QObject*>("aiGenerateButton");
+        auto sampleTimer=new QTimer(&app);sampleTimer->setInterval(5);
+        QObject::connect(sampleTimer,&QTimer::timeout,&app,[&,stable,samples,button]{
+            ++*samples;*stable&=button&&button->property("enabled").toBool()&&!master.busy()&&master.status()==QStringLiteral("串口已打开 · 自动轮询设备");
+        });sampleTimer->start();
+        QTimer::singleShot(3000,&app,[&,stable,samples]{
+            bool ok=*stable&&*samples>=100&&master.acknowledgements()>=20&&master.failures()==0&&qmlWarnings.isEmpty();
+            qInfo().noquote()<<(ok?"PASS: AI generate button and status stay stable across delayed background poll replies":"FAIL: background poll flickers AI controls")<<"samples"<<*samples<<"ACK"<<master.acknowledgements();app.exit(ok?0:38);
+        });
+    }
     if(sender&&args.contains("--ai-report")){
         if(args.contains("--ai-playback-test"))ai.enableAutomatedTest();
         ai.previewReport(optionText("--ai-report",QString()));

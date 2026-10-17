@@ -16,7 +16,7 @@ SerialMaster::SerialMaster(TwinController *twin,const QJsonObject &config,const 
     if(automatic)m_timer.start();
 }
 int SerialMaster::address(const QString &id) const{return m_registry.value(id).toObject().value("address").toInt();}
-QString SerialMaster::status() const{if(!m_lastError.isEmpty())return m_lastError;if(!connected())return "发送串口未打开";return m_demo?m_executionLabel:m_pending?"等待 Modbus 应答":"串口已打开 · 自动轮询设备";}
+QString SerialMaster::status() const{if(!m_lastError.isEmpty())return m_lastError;if(!connected())return "发送串口未打开";return m_demo?m_executionLabel:(m_pending&&!m_heartbeat)?"等待 Modbus 应答":"串口已打开 · 自动轮询设备";}
 void SerialMaster::log(const QString &message){m_logDirty=true;m_frames.prepend(QTime::currentTime().toString("HH:mm:ss.zzz")+" "+message);while(m_frames.size()>100)m_frames.removeLast();}
 bool SerialMaster::openPort(const QString &name,int baud){closePort();m_portName=name.trimmed();m_baud=baud;m_lastError.clear();if(!Rtu::open(m_port,m_portName,baud,m_config.value("serial").toObject(),m_lastError)){log("打开失败："+m_lastError);emit changed();return false;}QSettings settings;settings.setValue("serial/sender_port",m_portName);settings.setValue("serial/sender_baud",baud);log("打开发送串口 "+m_portName);emit changed();return true;}
 void SerialMaster::closePort(){m_port.close();m_test=false;m_jobs.clear();m_pending=false;m_demo=false;m_buffer.clear();m_readyAt=0;emit changed();}
