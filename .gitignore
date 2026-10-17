@@ -1,0 +1,15 @@
+build*/
+dist/
+*.pro.user*
+*.qmlc
+*.jsc
+*.log
+__pycache__/
+*.py[cod]
+*.zip
+verification*.json
+demo-screenshot*.png
+!demo-screenshot-baseline.png
+!demo-screenshot-extended.png
+.DS_Store
+Thumbs.db

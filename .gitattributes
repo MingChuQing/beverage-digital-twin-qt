@@ -1,0 +1,15 @@
+* text=auto
+*.cpp text eol=lf
+*.h text eol=lf
+*.qml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.pro text eol=lf
+*.qrc text eol=lf
+*.bat text eol=crlf
+*.png -text
+.gitignore text eol=lf
+.gitattributes text eol=lf
+# Preserve the imported source snapshots byte-for-byte for source_manifest.json.
+config/recipes/** -text

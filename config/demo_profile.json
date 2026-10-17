@@ -1,0 +1,394 @@
+{
+  "name": "饮料灌装数字孪生 · 演示版",
+  "source": "industrial_config_engine/examples/beverage_full/example4 → example5",
+  "notice": "外部 JSON 选择口味和规格、生产点、容量与灌装时长；三维 PR 映射为展示标定，不执行完整 L1/L2，不打开串口。",
+  "steps": [
+    {
+      "label": "系统初始化",
+      "duration": 3,
+      "active": [
+        "X",
+        "Y1",
+        "Y2",
+        "Z"
+      ],
+      "note": "模拟回零与设备检查",
+      "route": "home"
+    },
+    {
+      "label": "空瓶进料",
+      "duration": 4,
+      "active": [
+        "Infeed",
+        "Gripper",
+        "ContainerSensor"
+      ],
+      "note": "输送空瓶进入检测区域",
+      "route": "empty"
+    },
+    {
+      "label": "瓶位检测",
+      "duration": 3,
+      "active": [
+        "BottleSensor",
+        "ContainerSensor"
+      ],
+      "note": "等待瓶子到位后定位",
+      "route": "empty"
+    },
+    {
+      "label": "瓶内冲洗",
+      "duration": 5,
+      "active": [
+        "RinseValve",
+        "PressureSensor"
+      ],
+      "note": "冲洗流路高亮，模拟压力采样",
+      "route": "rinse"
+    },
+    {
+      "label": "灌装定位",
+      "duration": 4,
+      "active": [
+        "X",
+        "Y1",
+        "Y2",
+        "Z"
+      ],
+      "note": "按演示坐标移动至灌装工位",
+      "route": "fill"
+    },
+    {
+      "label": "灌装",
+      "duration": 8,
+      "active": [
+        "${fill_device}",
+        "FlowMeter",
+        "LevelSensor",
+        "PressureSensor"
+      ],
+      "note": "选定口味的共用灌装头，容量和设定时长读取当前配方",
+      "route": "fill"
+    },
+    {
+      "label": "液位复检",
+      "duration": 3,
+      "active": [
+        "LevelSensor"
+      ],
+      "note": "模拟检测灌装后的液位到位信号",
+      "route": "fill"
+    },
+    {
+      "label": "封口",
+      "duration": 5,
+      "active": [
+        "Closure",
+        "CapFeeder",
+        "Relay",
+        "Torque"
+      ],
+      "note": "Relay 旋盖输出与 Torque 测量关联",
+      "route": "closure"
+    },
+    {
+      "label": "喷码贴标",
+      "duration": 4,
+      "active": [
+        "Relay",
+        "BottleSensor"
+      ],
+      "note": "Relay 喷码/贴标输出与瓶位检测关联",
+      "route": "code"
+    },
+    {
+      "label": "成品出料",
+      "duration": 4,
+      "active": [
+        "Gripper",
+        "Outfeed",
+        "BottleSensor"
+      ],
+      "note": "已灌装并封盖的容器完成出料",
+      "route": "finished"
+    },
+    {
+      "label": "CIP 清洗",
+      "duration": 5,
+      "active": [
+        "CIPValve",
+        "RinseValve",
+        "PressureSensor",
+        "Relay"
+      ],
+      "note": "本配方全部批次完成后执行一次 CIP；时长压缩演示",
+      "route": "home"
+    },
+    {
+      "label": "回零待机",
+      "duration": 3,
+      "active": [
+        "X",
+        "Y1",
+        "Y2",
+        "Z"
+      ],
+      "note": "回零完成后可循环演示",
+      "route": "home"
+    }
+  ],
+  "devices": [
+    {
+      "id": "X",
+      "name": "X 轴电机",
+      "category": "运动",
+      "metric": "PR 映射示意位置",
+      "unit": "展示单位",
+      "point": "FC03 0x602C × 2 / int32 BE",
+      "sourceKind": "模拟反馈",
+      "note": "位置读数取自三维标定映射，尚非现场毫米；源配置反馈为 FC03 0x602C × 2 / int32 BE。",
+      "x": -0.3,
+      "z": 0.2
+    },
+    {
+      "id": "Y1",
+      "name": "Y1 轴电机",
+      "category": "运动",
+      "metric": "PR 映射示意位置",
+      "unit": "展示单位",
+      "point": "FC03 0x602C × 2 / int32 BE",
+      "sourceKind": "模拟反馈",
+      "note": "位置读数取自三维标定映射，尚非现场毫米；源配置反馈为 FC03 0x602C × 2 / int32 BE。",
+      "x": -5.8,
+      "z": -1.2
+    },
+    {
+      "id": "Y2",
+      "name": "Y2 轴电机",
+      "category": "运动",
+      "metric": "PR 映射示意位置",
+      "unit": "展示单位",
+      "point": "FC03 0x602C × 2 / int32 BE",
+      "sourceKind": "模拟反馈",
+      "note": "位置读数取自三维标定映射，尚非现场毫米；源配置反馈为 FC03 0x602C × 2 / int32 BE。",
+      "x": -5.8,
+      "z": 1.5
+    },
+    {
+      "id": "Z",
+      "name": "Z 轴电机",
+      "category": "运动",
+      "metric": "PR 映射示意位置",
+      "unit": "展示单位",
+      "point": "FC03 0x602C × 2 / int32 BE",
+      "sourceKind": "模拟反馈",
+      "note": "位置读数取自三维标定映射，尚非现场毫米；源配置反馈为 FC03 0x602C × 2 / int32 BE。",
+      "x": -0.3,
+      "z": 0.2
+    },
+    {
+      "id": "Infeed",
+      "name": "上瓶电机",
+      "category": "运动",
+      "metric": "模拟 PR 动作",
+      "unit": "",
+      "point": "FC06 0x6002 / FC04 0x0000",
+      "sourceKind": "模拟反馈",
+      "note": "动作点号取自当前配方；同一电机支持各包装规格。",
+      "x": -6,
+      "z": 0
+    },
+    {
+      "id": "Closure",
+      "name": "封口电机",
+      "category": "运动",
+      "metric": "模拟 PR 动作",
+      "unit": "",
+      "point": "FC06 0x6002 / FC04 0x0000",
+      "sourceKind": "模拟反馈",
+      "note": "动作点号取自当前配方；同一电机支持各包装规格。",
+      "x": 3.5,
+      "z": 0
+    },
+    {
+      "id": "Outfeed",
+      "name": "出料电机",
+      "category": "运动",
+      "metric": "模拟 PR 动作",
+      "unit": "",
+      "point": "FC06 0x6002 / FC04 0x0000",
+      "sourceKind": "模拟反馈",
+      "note": "动作点号取自当前配方；同一电机支持各包装规格。",
+      "x": 5.6,
+      "z": 0
+    },
+    {
+      "id": "OrangeFill",
+      "name": "橙汁灌装头",
+      "category": "灌装",
+      "metric": "模拟已灌装量",
+      "unit": "mL",
+      "point": "FC06 0x0010 容量 / 0x0011 时长；FC05 0x0000 启停；FC04 0x0000 完成；FC03 0x0012 体积",
+      "sourceKind": "模拟反馈",
+      "note": "固定口味灌装头，三种包装共用；包装改变容器的 Y/Z PR。",
+      "x": -2,
+      "z": 0
+    },
+    {
+      "id": "AppleFill",
+      "name": "苹果汁灌装头",
+      "category": "灌装",
+      "metric": "模拟已灌装量",
+      "unit": "mL",
+      "point": "FC06 0x0010 容量 / 0x0011 时长；FC05 0x0000 启停；FC04 0x0000 完成；FC03 0x0012 体积",
+      "sourceKind": "模拟反馈",
+      "note": "固定口味灌装头，三种包装共用；包装改变容器的 Y/Z PR。",
+      "x": 0,
+      "z": 0
+    },
+    {
+      "id": "GrapeFill",
+      "name": "葡萄汁灌装头",
+      "category": "灌装",
+      "metric": "模拟已灌装量",
+      "unit": "mL",
+      "point": "FC06 0x0010 容量 / 0x0011 时长；FC05 0x0000 启停；FC04 0x0000 完成；FC03 0x0012 体积",
+      "sourceKind": "模拟反馈",
+      "note": "固定口味灌装头，三种包装共用；包装改变容器的 Y/Z PR。",
+      "x": 2,
+      "z": 0
+    },
+    {
+      "id": "Gripper",
+      "name": "容器夹爪",
+      "category": "执行",
+      "metric": "模拟夹持状态",
+      "unit": "",
+      "point": "FC05 coil 0x0000",
+      "sourceKind": "模拟指令",
+      "note": "夹取后携带当前包装容器，出料阶段松夹。",
+      "x": -6,
+      "z": 0
+    },
+    {
+      "id": "CapFeeder",
+      "name": "供盖机构",
+      "category": "执行",
+      "metric": "供盖指令",
+      "unit": "",
+      "point": "FC05 coil 0x0000",
+      "sourceKind": "模拟指令",
+      "note": "供盖启停；封口形式与电机 PR 由当前配方决定。",
+      "x": 3.5,
+      "z": -1
+    },
+    {
+      "id": "ContainerSensor",
+      "name": "空容器检测",
+      "category": "检测",
+      "metric": "模拟到位",
+      "unit": "",
+      "point": "FC04 0x0000",
+      "sourceKind": "模拟反馈",
+      "note": "上瓶与夹取检测；对应源配置的独立端点。",
+      "x": -6,
+      "z": 0.8
+    },
+    {
+      "id": "RinseValve",
+      "name": "冲洗阀",
+      "category": "阀门",
+      "metric": "阀门指令",
+      "unit": "",
+      "point": "FC05 coil 0x0012",
+      "sourceKind": "模拟指令",
+      "note": "写响应仅证明命令被接收；原配置未提供独立阀位反馈。",
+      "x": -4.0,
+      "z": 0.2
+    },
+    {
+      "id": "CIPValve",
+      "name": "CIP 清洗阀",
+      "category": "阀门",
+      "metric": "阀门指令",
+      "unit": "",
+      "point": "FC05 coil 0x0013",
+      "sourceKind": "模拟指令",
+      "note": "清洗阶段关联阀门指令与压力；显示为模拟指令态。",
+      "x": -1.7,
+      "z": -2.6
+    },
+    {
+      "id": "Relay",
+      "name": "继电器输出模块",
+      "category": "输出",
+      "metric": "当前模拟输出",
+      "unit": "",
+      "point": "FC05 coil 0x000B / 0x000C / 0x000D 等",
+      "sourceKind": "模拟指令",
+      "note": "分别关联旋盖、喷码和贴标；模型工位与协议端点并非一对一。",
+      "x": 5.5,
+      "z": -1.9
+    },
+    {
+      "id": "BottleSensor",
+      "name": "瓶位检测",
+      "category": "检测",
+      "metric": "模拟到位",
+      "unit": "",
+      "point": "FC04 0x0034 等 / 多工位检测点",
+      "sourceKind": "模拟反馈",
+      "note": "原配置还包含 0x0046 盖到位与 0x0047 喷码位置等点位。",
+      "x": -4.8,
+      "z": 0.9
+    },
+    {
+      "id": "LevelSensor",
+      "name": "液位检测",
+      "category": "检测",
+      "metric": "模拟液位到位",
+      "unit": "",
+      "point": "FC04 0x0038 / uint16",
+      "sourceKind": "模拟反馈",
+      "note": "到位开关不提供连续液面；瓶内液面由模拟体积推算。",
+      "x": -1.8,
+      "z": 0.9
+    },
+    {
+      "id": "PressureSensor",
+      "name": "压力传感器",
+      "category": "仪表",
+      "metric": "模拟压力",
+      "unit": "MPa",
+      "point": "FC03 0x0010 / 0x0012 × 2 / float LE",
+      "sourceKind": "模拟反馈",
+      "note": "冲洗与灌装读取不同寄存器；MPa 为演示单位。",
+      "x": -0.5,
+      "z": -1.7
+    },
+    {
+      "id": "FlowMeter",
+      "name": "流量计",
+      "category": "仪表",
+      "metric": "模拟累计体积",
+      "unit": "mL",
+      "point": "FC06 0x0001 清零；FC03 0x0000 × 2 / float LE",
+      "sourceKind": "模拟反馈",
+      "note": "原配置为小端 float；mL、比例、字序须按真实手册核对。",
+      "x": -2.7,
+      "z": -1.7
+    },
+    {
+      "id": "Torque",
+      "name": "封口扭矩检测",
+      "category": "仪表",
+      "metric": "模拟扭矩",
+      "unit": "N·m",
+      "point": "FC03 0x0030 × 2 / float LE",
+      "sourceKind": "模拟反馈",
+      "note": "源配置在三种包装的共用封口阶段均检查扭矩；封口动作关联 Closure、CapFeeder 与 Relay。",
+      "x": 2.9,
+      "z": 0.2
+    }
+  ]
+}
