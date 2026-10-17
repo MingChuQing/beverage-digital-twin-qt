@@ -1,0 +1,587 @@
+{
+  "serial": {
+    "receiver_port": "COM10",
+    "sender_port": "COM3",
+    "baud_rate": 115200,
+    "data_bits": 8,
+    "parity": "None",
+    "stop_bits": 1,
+    "stale_timeout_ms": 5000,
+    "partial_frame_timeout_ms": 50,
+    "response_timeout_ms": 2000,
+    "motion_duration_ms": 900,
+    "counts_per_scene_unit": 1000
+  },
+  "registry": "serial/device_registry.json",
+  "line_control": {
+    "address": 240,
+    "profile_register": 256,
+    "flavor_register": 257,
+    "format_register": 258,
+    "stage_register": 259,
+    "command_register": 260,
+    "completed_register": 261
+  },
+  "devices": {
+    "X": {
+      "kind": "motion",
+      "holding": {
+        "24620": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "32": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "8707": {
+          "type": "u16",
+          "source": "zero"
+        },
+        "4099": {
+          "type": "u16",
+          "source": "zero"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "24578": "pr_trigger"
+      },
+      "write_coils": {},
+      "axis": "x"
+    },
+    "Y1": {
+      "kind": "motion",
+      "holding": {
+        "24620": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "32": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "8707": {
+          "type": "u16",
+          "source": "zero"
+        },
+        "4099": {
+          "type": "u16",
+          "source": "zero"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "24578": "pr_trigger"
+      },
+      "write_coils": {},
+      "axis": "y"
+    },
+    "Y2": {
+      "kind": "motion",
+      "holding": {
+        "24620": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "32": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "8707": {
+          "type": "u16",
+          "source": "zero"
+        },
+        "4099": {
+          "type": "u16",
+          "source": "zero"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "24578": "pr_trigger"
+      },
+      "write_coils": {},
+      "axis": "y"
+    },
+    "Z": {
+      "kind": "motion",
+      "holding": {
+        "24620": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "32": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "8707": {
+          "type": "u16",
+          "source": "zero"
+        },
+        "4099": {
+          "type": "u16",
+          "source": "zero"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "24578": "pr_trigger"
+      },
+      "write_coils": {},
+      "axis": "z"
+    },
+    "Infeed": {
+      "kind": "motion",
+      "holding": {
+        "24620": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "32": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "8707": {
+          "type": "u16",
+          "source": "zero"
+        },
+        "4099": {
+          "type": "u16",
+          "source": "zero"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "24578": "pr_trigger"
+      },
+      "write_coils": {},
+      "axis": ""
+    },
+    "Closure": {
+      "kind": "motion",
+      "holding": {
+        "24620": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "32": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "8707": {
+          "type": "u16",
+          "source": "zero"
+        },
+        "4099": {
+          "type": "u16",
+          "source": "zero"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "24578": "pr_trigger"
+      },
+      "write_coils": {},
+      "axis": ""
+    },
+    "Outfeed": {
+      "kind": "motion",
+      "holding": {
+        "24620": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "32": {
+          "type": "i32be",
+          "source": "position"
+        },
+        "8707": {
+          "type": "u16",
+          "source": "zero"
+        },
+        "4099": {
+          "type": "u16",
+          "source": "zero"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "24578": "pr_trigger"
+      },
+      "write_coils": {},
+      "axis": ""
+    },
+    "OrangeFill": {
+      "kind": "fill",
+      "holding": {
+        "16": {
+          "type": "u16",
+          "source": "volume"
+        },
+        "17": {
+          "type": "u16",
+          "source": "fill_time_ms"
+        },
+        "18": {
+          "type": "u16",
+          "source": "dispensed"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "16": "volume",
+        "17": "fill_time_ms"
+      },
+      "write_coils": {
+        "0": "enable"
+      }
+    },
+    "AppleFill": {
+      "kind": "fill",
+      "holding": {
+        "16": {
+          "type": "u16",
+          "source": "volume"
+        },
+        "17": {
+          "type": "u16",
+          "source": "fill_time_ms"
+        },
+        "18": {
+          "type": "u16",
+          "source": "dispensed"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "16": "volume",
+        "17": "fill_time_ms"
+      },
+      "write_coils": {
+        "0": "enable"
+      }
+    },
+    "GrapeFill": {
+      "kind": "fill",
+      "holding": {
+        "16": {
+          "type": "u16",
+          "source": "volume"
+        },
+        "17": {
+          "type": "u16",
+          "source": "fill_time_ms"
+        },
+        "18": {
+          "type": "u16",
+          "source": "dispensed"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "16": "volume",
+        "17": "fill_time_ms"
+      },
+      "write_coils": {
+        "0": "enable"
+      }
+    },
+    "Gripper": {
+      "kind": "io",
+      "holding": {},
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {
+        "0": "enable"
+      }
+    },
+    "CapFeeder": {
+      "kind": "io",
+      "holding": {},
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {
+        "0": "enable"
+      }
+    },
+    "ContainerSensor": {
+      "kind": "io",
+      "holding": {},
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "container"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {}
+    },
+    "RinseValve": {
+      "kind": "io",
+      "holding": {},
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {
+        "18": "enable"
+      }
+    },
+    "CIPValve": {
+      "kind": "io",
+      "holding": {},
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {
+        "19": "enable"
+      }
+    },
+    "Relay": {
+      "kind": "io",
+      "holding": {},
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {
+        "8": "relay",
+        "9": "relay",
+        "10": "relay",
+        "11": "relay",
+        "12": "relay",
+        "13": "relay",
+        "14": "relay",
+        "20": "relay"
+      }
+    },
+    "BottleSensor": {
+      "kind": "io",
+      "holding": {},
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        },
+        "52": {
+          "type": "u16",
+          "source": "container"
+        },
+        "53": {
+          "type": "u16",
+          "source": "container"
+        },
+        "54": {
+          "type": "u16",
+          "source": "container"
+        },
+        "55": {
+          "type": "u16",
+          "source": "container"
+        },
+        "57": {
+          "type": "u16",
+          "source": "container"
+        },
+        "58": {
+          "type": "u16",
+          "source": "container"
+        },
+        "59": {
+          "type": "u16",
+          "source": "container"
+        },
+        "64": {
+          "type": "u16",
+          "source": "container"
+        },
+        "65": {
+          "type": "u16",
+          "source": "container"
+        },
+        "66": {
+          "type": "u16",
+          "source": "container"
+        },
+        "67": {
+          "type": "u16",
+          "source": "container"
+        },
+        "68": {
+          "type": "u16",
+          "source": "container"
+        },
+        "69": {
+          "type": "u16",
+          "source": "container"
+        },
+        "70": {
+          "type": "u16",
+          "source": "capped"
+        },
+        "71": {
+          "type": "u16",
+          "source": "container"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {}
+    },
+    "LevelSensor": {
+      "kind": "io",
+      "holding": {},
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        },
+        "56": {
+          "type": "u16",
+          "source": "level"
+        },
+        "57": {
+          "type": "u16",
+          "source": "level"
+        },
+        "58": {
+          "type": "u16",
+          "source": "level"
+        },
+        "59": {
+          "type": "u16",
+          "source": "level"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {}
+    },
+    "PressureSensor": {
+      "kind": "io",
+      "holding": {
+        "16": {
+          "type": "f32le",
+          "source": "pressure"
+        },
+        "18": {
+          "type": "f32le",
+          "source": "pressure"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {}
+    },
+    "FlowMeter": {
+      "kind": "io",
+      "holding": {
+        "0": {
+          "type": "f32le",
+          "source": "flow"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {
+        "1": "clear_flow"
+      },
+      "write_coils": {}
+    },
+    "Torque": {
+      "kind": "io",
+      "holding": {
+        "48": {
+          "type": "f32le",
+          "source": "torque"
+        }
+      },
+      "input": {
+        "0": {
+          "type": "u16",
+          "source": "done"
+        }
+      },
+      "write_registers": {},
+      "write_coils": {}
+    }
+  }
+}

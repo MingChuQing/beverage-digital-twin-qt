@@ -1,11 +1,11 @@
-QT += core gui qml quick quickcontrols2 quick3d
+QT += core gui qml quick quickcontrols2 quick3d serialport
 CONFIG += c++14
 # Qt 5's MinGW tools cannot round-trip non-ASCII absolute paths in moc predefs.
 win32-g++:CONFIG += no_moc_predefs
 TEMPLATE = app
 TARGET = BeverageTwinDemo
-SOURCES += src/main.cpp src/twincontroller.cpp
-HEADERS += src/twincontroller.h
+SOURCES += src/main.cpp src/twincontroller.cpp src/serialplant.cpp src/serialmaster.cpp src/serialtests.cpp
+HEADERS += src/twincontroller.h src/serialplant.h src/serialmaster.h
 RESOURCES += resources.qrc
 DISTFILES += $$files(qml/*.qml) $$files(config/*.json, true)
 # Explicit relative dependencies also work when the source directory has Chinese characters.

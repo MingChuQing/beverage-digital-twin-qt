@@ -1,10 +1,16 @@
-# 饮料灌装数字孪生演示版 v0.2
+# 饮料灌装数字孪生演示版 v0.3
 
 可运行的 **C++ / Qt 5.14.0 / QML / Qt Quick 3D** 桌面程序。以原项目 `beverage_full` 案例的 JSON 配置驱动配方、容量、生产点、工艺层级和设备目录：原配置为 **三口味 × 两规格，共 6 个配方**；扩展配置为三种口味同时新增 250 mL 小瓶装，共 **9 个配方**。
 
 三种口味分别使用固定的橙汁、苹果汁、葡萄汁灌装头。同一口味的各规格共用灌装头；切换规格时容器外形、上瓶和成品位置、灌装定位的 Y/Z PR、封口模式及其他生产点随配置变化。三维布局与 PR 到场景坐标的映射为演示标定。
 
-![扩展版：葡萄汁 250 mL 小瓶装](demo-screenshot-extended.png)
+![串口接收：葡萄汁 250 mL 小瓶装](serial-receiver.png)
+
+v0.3 增加 **单串口 Modbus RTU 从站**和独立的 Qt 指令发送窗口。默认接收 **COM10**、发送 **COM3**，115200 / 8N1，串口号与波特率可在界面修改。动作由有效串口指令驱动，设备反馈由虚拟模型计算。
+
+双击 **`run_serial_test.bat`** 打开两个程序，再在发送端点击“发送单件工艺”。完整地址表、接线、原配置引擎导出方法及测试命令见 [串口联调说明](docs/SERIAL_PROTOCOL.md)。
+
+![Modbus 指令发送端](serial-sender.png)
 
 这是独立的数字孪生演示工程。生产线配置来源于 [industrial_config_engine](https://github.com/MingChuQing/industrial_config_engine) 的案例快照；论文文件和原引擎源码由原项目管理。
 
@@ -12,11 +18,11 @@
 
 首次从 GitHub 克隆源码后，先按下方“构建”章节编译并打包，生成 `dist` 运行目录。
 
-双击项目目录的 `run_demo.bat`，或运行 `dist/BeverageTwinDemo.exe`。保留整个 `dist` 文件夹，其中包含 Qt / MinGW DLL、QML 插件和外部 JSON 配置，无需下载三维模型或联网。
+串口联调使用 `run_serial_test.bat`；也可以分别运行 `run_receiver.bat` 与 `run_sender.bat`，选择端口并打开。直接运行 `dist/BeverageTwinDemo.exe` 进入串口接收模式。离线演示使用 `run_demo.bat`。保留整个 `dist` 文件夹，其中包含 Qt / MinGW DLL、QML 插件和外部 JSON 配置，无需下载三维模型或联网。
 
-批处理默认自动开始演示；直接打开 EXE 时先显示暂停状态。截图中的 Qt Creator 4.13.1 是 IDE 版本；本机实际使用的构建 Kit 为 Qt 5.14.0 / MinGW 7.3 / 64 位。
+`run_demo.bat` 自动开始离线演示；串口模式等待外部主站命令。截图中的 Qt Creator 4.13.1 是 IDE 版本；本机实际使用的构建 Kit 为 Qt 5.14.0 / MinGW 7.3 / 64 位。
 
-## 建议演示顺序
+## 离线配置演示顺序
 
 1. 选择原版配置，依次选择橙汁、苹果汁、葡萄汁，确认每种口味只有 **2 L 家庭装、330 mL 罐装** 两个选项。场景中的三个口味灌装头始终保留。
 2. 在同一口味下切换家庭装与罐装，查看容器形状、上瓶 / 灌装 / 成品点卡片，以及 X/Y/Z PR 的变化。
@@ -27,7 +33,7 @@
 
 切换配置或配方会重置当前模拟过程。步骤跳转属于预览，不增加产量。循环选项在整份配方的 12 个容器、CIP 和回零结束后重新开始。
 
-## 操作
+## 离线操作
 
 - **开始 / 继续、暂停、推进一步、重置**控制模拟过程；暂停保留机械位置，并关闭模拟动作输出。
 - **0.5× / 1× / 2× / 4×**改变演示速度。短时灌装在画面中至少展示 3 秒，设定灌装时长仍显示源配方数值。
@@ -51,9 +57,10 @@
 - `config/recipes/baseline/`、`extended/`：原样保存两份注册表、系统变量及分层工艺 JSON，共 63 个源 JSON 文件。加载器依据 `recipe_lookup[flavor][specification]` 选择配方，并核对 L4 的两参数调用与 L3 参数范围。
 - `config/source_manifest.json`：导入源路径和文件 SHA-256，方便核对快照。`tools/import_recipe_profiles.py` 可从本地原项目重新导入。
 - `config/demo_profile.json`：演示新增的中文标签、设备显示信息、步骤活动关联及非灌装步骤的展示时长。
+- `config/serial/`：单串口设备注册表、串口默认值、类型化寄存器 / 线圈映射及新增站 240 管理接口。收发程序共用该配置。
 - `config/visualization.json`：口味颜色、包装外形和 PR 到三维坐标的示意映射。这里的坐标不代表实机毫米位置。
 
-扩展版保留原 6 个配方、原 33 个点位和设备注册表，再追加新数据。程序加载时校验这些约束。`OrangeFill`、`AppleFill`、`GrapeFill` 在两份注册表中保持不变；原例端口为 `SIM_MOTION` / `SIM_PROCESS`，并非正在连接的串口。
+扩展版保留原 6 个配方、原 33 个点位和设备注册表，再追加新数据。程序加载时校验这些约束。`OrangeFill`、`AppleFill`、`GrapeFill` 在两份注册表中保持不变；原快照端口为 `SIM_MOTION` / `SIM_PROCESS`。串口模式使用新增的 `config/serial/device_registry.json` 统一站号表：运动 1–7、工艺 21–34；单个接收串口响应全部虚拟设备。
 
 | 包装 | 上瓶工作点 | 橙汁 / 苹果汁 / 葡萄汁灌装工作点 | 成品工作点 | 封口模式 |
 |---|---:|---|---:|---|
@@ -95,6 +102,10 @@ python .\tools\verify_demo.py --gui --profile extended --flavor 1 --format 1
 - `src/twincontroller.*`：配置加载与校验、配方选择、状态模型、模拟工艺、数据质量及趋势。
 - `qml/Main.qml`：版本 / 配方选择、运行控制、设备详情、点位和十二步工艺。
 - `qml/LineScene.qml`：三个固定灌装头、规格工位、运动与容器显示。
+- `src/serialplant.*`：单串口多站号 RTU 从站、CRC / 分包校验、命令驱动的虚拟设备与通信质量。
+- `src/serialmaster.*`、`qml/Sender.qml`：独立主站程序、单件联调工艺、手动命令与应答匹配。
+- `tools/verify_serial.py`：协议回归及 COM10 / COM3 双进程 GUI 实测。
+- `tools/export_single_bus_case.py`：为原配置引擎导出共用站号的单总线案例。
 - `tools/deploy_runtime.ps1`：复制 Qt / QML 插件及 PE 依赖形成可移动运行目录。
 
-当前状态来自演示模拟器，尚未接入真实串口 / Modbus，也未执行原引擎的完整 L1/L2 指令。实际接入时需提供串口参数、寄存器字序、缩放和状态定义，通过适配器更新现有设备模型。Qt / MinGW 动态运行库许可保留在 `dist/licenses`。
+串口模式已接入真实串口 / Modbus RTU，虚拟设备接收命令、计算动作和传感器状态并回传应答。当前不是物理设备采集器；原引擎完整 L1/L2 仍由外部控制程序执行，离线模式保留原模拟工艺。Qt / MinGW 动态运行库许可保留在 `dist/licenses`。

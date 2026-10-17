@@ -1,0 +1,89 @@
+{
+  "configuration_note": "Single bus controller registry (default COM3). Motion addresses 1-7; process addresses 21-34. The twin receiver opens its own endpoint COM10.",
+  "devices": {
+    "X": {
+      "port": "COM3",
+      "address": 1
+    },
+    "Y1": {
+      "port": "COM3",
+      "address": 2
+    },
+    "Y2": {
+      "port": "COM3",
+      "address": 3
+    },
+    "Z": {
+      "port": "COM3",
+      "address": 4
+    },
+    "Infeed": {
+      "port": "COM3",
+      "address": 5
+    },
+    "Closure": {
+      "port": "COM3",
+      "address": 6
+    },
+    "Outfeed": {
+      "port": "COM3",
+      "address": 7
+    },
+    "OrangeFill": {
+      "port": "COM3",
+      "address": 21
+    },
+    "AppleFill": {
+      "port": "COM3",
+      "address": 22
+    },
+    "GrapeFill": {
+      "port": "COM3",
+      "address": 23
+    },
+    "Gripper": {
+      "port": "COM3",
+      "address": 24
+    },
+    "CapFeeder": {
+      "port": "COM3",
+      "address": 25
+    },
+    "ContainerSensor": {
+      "port": "COM3",
+      "address": 26
+    },
+    "RinseValve": {
+      "port": "COM3",
+      "address": 27
+    },
+    "CIPValve": {
+      "port": "COM3",
+      "address": 28
+    },
+    "Relay": {
+      "port": "COM3",
+      "address": 29
+    },
+    "BottleSensor": {
+      "port": "COM3",
+      "address": 30
+    },
+    "LevelSensor": {
+      "port": "COM3",
+      "address": 31
+    },
+    "PressureSensor": {
+      "port": "COM3",
+      "address": 32
+    },
+    "FlowMeter": {
+      "port": "COM3",
+      "address": 33
+    },
+    "Torque": {
+      "port": "COM3",
+      "address": 34
+    }
+  }
+}

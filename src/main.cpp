@@ -1,4 +1,7 @@
 #include "twincontroller.h"
+#include "serialmaster.h"
+#include <QJsonDocument>
+#include <QJsonArray>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -22,26 +25,94 @@ int main(int argc,char **argv){
     QGuiApplication app(argc,argv);
     app.setFont(QFont("Microsoft YaHei",10));
     QLoggingCategory::setFilterRules("QSSG.trace_info=false");
-    app.setOrganizationName("IndustrialConfigEngine");app.setApplicationName("BeverageTwinDemo");app.setApplicationVersion("0.2.0");
+    app.setOrganizationName("IndustrialConfigEngine");app.setApplicationName("BeverageTwinDemo");app.setApplicationVersion("0.3.0");
     const auto args=app.arguments();
     if(args.contains("--self-test")){QString error;bool ok=TwinController::selfTest(&error);qInfo().noquote()<< (ok?"PASS: 6/9 recipe configuration, shared filling heads, point mapping, batch simulation, pause, offline and faults":"FAIL: "+error);return ok?0:1;}
+    if(args.contains("--list-ports")){qInfo().noquote()<<QJsonDocument(QJsonArray::fromStringList(Rtu::ports())).toJson(QJsonDocument::Compact);return 0;}
+    if(args.contains("--rtu-self-test")){QString error;bool ok=SerialPlant::selfTest(&error);qInfo().noquote()<<(ok?"PASS: RTU CRC, framing, commands, replies, addresses, atomic writes, quality, motion, filling, master loopback":"FAIL: "+error);return ok?0:1;}
     QQuickStyle::setStyle("Fusion");
-    TwinController twin;
+    TwinController twin(nullptr,!args.contains("--sender"));
     if(!twin.configError().isEmpty()){qCritical().noquote()<<twin.configError();return 2;}
     if(args.contains("--extended")&&!twin.loadProfile(1))return 2;
     auto optionNumber=[&args](const QString &name){int i=args.indexOf(name);if(i<0)return 0;bool valid=false;int value=args.value(i+1).toInt(&valid);return valid?value:-1;};
     if(!twin.selectRecipe(optionNumber("--flavor"),optionNumber("--format"))){qCritical()<<"Unsupported flavor / format in selected profile";return 2;}
+    SerialPlant bus(&twin,twin.configurationRoot());
+    if(!bus.configError().isEmpty()){qCritical().noquote()<<bus.configError();return 13;}
+    twin.attachPlant(&bus);
+    SerialMaster master(&twin,bus.protocol(),bus.registry());
+    const bool sender=args.contains("--sender");
+    bus.setSerialMode(!sender&&!args.contains("--offline")&&!args.contains("--smoke-test"));
+    auto optionText=[&args](const QString &name,const QString &fallback){int i=args.indexOf(name);return i>=0?args.value(i+1):fallback;};
+    std::shared_ptr<SerialMaster> hardwareMaster;
+    if(args.contains("--serial-smoke-test")||args.contains("--serial-gui-test")){
+        QString receiver=optionText("--receiver-port","COM10"),transmitter=optionText("--sender-port","COM3");
+        if(receiver==transmitter){qCritical()<<"Receiver and sender ports must differ";return 14;}
+        if(!bus.openPort(receiver,115200)||!master.openPort(transmitter,115200)){qCritical().noquote()<<bus.status()<<master.status();return 14;}
+        // Separate controller objects prevent sender UI recipe edits from mutating the receiver.
+        auto senderTwin=std::make_shared<TwinController>(nullptr,false);senderTwin->loadProfile(1);senderTwin->selectRecipe(2,2);
+        auto senderMaster=std::make_shared<SerialMaster>(senderTwin.get(),bus.protocol(),bus.registry());
+        master.closePort();if(!senderMaster->openPort(transmitter,115200)){qCritical()<<senderMaster->status();return 14;}
+        QTimer::singleShot(300,&app,[senderMaster]{senderMaster->startDemo();});
+        QObject::connect(senderMaster.get(),&SerialMaster::completedDemo,&app,[&,senderMaster,senderTwin]{
+            bool ok=senderMaster->failures()==0&&senderMaster->acknowledgements()>60&&bus.rxCount()>60&&twin.profileIndex()==1&&twin.flavorIndex()==2&&twin.formatIndex()==2&&twin.completed()==1&&twin.currentStep()==11&&qAbs(twin.fillFraction()-1)<.001&&qAbs(twin.axisX()+6.8)<.02;
+            qInfo().noquote()<<(ok?"PASS: physical COM10/COM3 RTU link, CRC replies, grape 250mL full single-container cycle":"FAIL: physical serial state mismatch")<<"RX"<<bus.rxCount()<<"ACK"<<senderMaster->acknowledgements()<<"CRC"<<bus.crcErrors()<<"stage"<<twin.currentStep()<<"fill"<<twin.fillFraction()<<"count"<<twin.completed();
+            app.exit(ok?0:15);
+        });
+        QTimer::singleShot(65000,&app,[&,senderMaster,senderTwin]{qCritical().noquote()<<"FAIL: physical serial test timed out"<<senderMaster->status()<<bus.status()<<senderMaster->frames().mid(0,6).join('\n');app.exit(16);});
+        hardwareMaster=senderMaster;
+        if(!args.contains("--serial-gui-test"))return app.exec();
+    }
+    if(args.contains("--port")){int baud=optionNumber("--baud");if(baud==0)baud=115200;if(sender){master.openPort(optionText("--port",master.portName()),baud);}else bus.openPort(optionText("--port",bus.portName()),baud);}
     QQmlApplicationEngine engine;
     QStringList qmlWarnings;
     QObject::connect(&engine,&QQmlEngine::warnings,&app,[&](const QList<QQmlError> &errors){for(const auto &e:errors)qmlWarnings<<e.toString();});
     engine.rootContext()->setContextProperty("twin",&twin);
+    engine.rootContext()->setContextProperty("bus",&bus);
+    engine.rootContext()->setContextProperty("master",&master);
     engine.rootContext()->setContextProperty("demoSmallWindow",args.contains("--small-window"));
     qInfo()<<"Loading demo QML";
-    engine.load(QUrl("qrc:/qml/Main.qml"));
+    engine.load(QUrl(sender?"qrc:/qml/Sender.qml":"qrc:/qml/Main.qml"));
     if(engine.rootObjects().isEmpty())return 3;
     auto window=qobject_cast<QQuickWindow*>(engine.rootObjects().first());
     if(!window)return 4;
     qInfo()<<"Demo window ready"<<window->size();
+    if(args.contains("--sender-demo-test")){
+        QTimer::singleShot(500,&app,[&]{master.startDemo();});
+        QObject::connect(&master,&SerialMaster::completedDemo,&app,[&]{QTimer::singleShot(250,&app,[&]{
+            QString path=optionText("--capture",QString());bool saved=path.isEmpty()||window->grabWindow().save(path);
+            bool ok=master.failures()==0&&master.acknowledgements()>60&&qmlWarnings.isEmpty()&&saved;
+            qInfo().noquote()<<(ok?"PASS: independent sender UI, real RTU requests and matching replies":"FAIL: sender UI test")<<"ACK"<<master.acknowledgements()<<"errors"<<master.failures()<<qmlWarnings.join('\n');app.exit(ok?0:21);
+        });});
+        QTimer::singleShot(90000,&app,[&]{qCritical()<<"FAIL: sender timed out"<<master.status();app.exit(22);});
+    }
+    if(args.contains("--receiver-serial-test")){
+        auto captured=std::make_shared<bool>(false);
+        QObject::connect(&bus,&SerialPlant::changed,&app,[&,captured]{if(!*captured&&bus.stage()==5&&bus.fillFraction()>.35){*captured=true;twin.selectDevice("FlowMeter");QTimer::singleShot(25,&app,[&]{QString path=optionText("--capture",QString());if(!path.isEmpty()&&!window->grabWindow().save(path)){qCritical()<<"FAIL: receiver screenshot";app.exit(23);}});}});
+        auto finishCheck=new QTimer(&app);finishCheck->setInterval(200);
+        QObject::connect(finishCheck,&QTimer::timeout,&app,[&,captured]{
+            if(twin.completed()!=1||twin.currentStep()!=11||bus.healthy()||bus.rxCount()<60)return;
+            bool ok=*captured&&bus.crcErrors()==0&&qAbs(twin.fillFraction()-1)<.001&&qAbs(twin.axisX()+6.8)<.02&&qmlWarnings.isEmpty();
+            qInfo().noquote()<<(ok?"PASS: independent receiver UI, complete real serial cycle, physical link timeout freeze":"FAIL: receiver serial UI test")<<"RX"<<bus.rxCount()<<"CRC"<<bus.crcErrors()<<"count"<<twin.completed()<<"stage"<<twin.currentStep()<<"healthy"<<bus.healthy()<<qmlWarnings.join('\n');app.exit(ok?0:24);
+        });finishCheck->start();
+        QTimer::singleShot(100000,&app,[&]{qCritical()<<"FAIL: receiver did not finish"<<bus.status()<<twin.currentStep()<<twin.completed();app.exit(24);});
+    }
+    if(args.contains("--ui-smoke-test")){
+        QTimer::singleShot(1800,&app,[&]{
+            QString capture=optionText("--capture",QString());
+            if(!qmlWarnings.isEmpty()||(!capture.isEmpty()&&!window->grabWindow().save(capture))){qCritical().noquote()<<"FAIL: UI render"<<qmlWarnings.join('\n');app.exit(17);return;}
+            qInfo()<<"PASS: serial UI rendered without QML warnings";app.exit(0);
+        });
+    }
+    if(hardwareMaster){
+        auto captured=std::make_shared<bool>(false);
+        QObject::connect(&bus,&SerialPlant::changed,&app,[&,captured]{
+            if(!*captured&&bus.stage()==5&&bus.fillFraction()>.35){
+                *captured=true;twin.selectDevice("FlowMeter");
+                QTimer::singleShot(25,&app,[&]{QString path=optionText("--capture",QString());if(!path.isEmpty()&&!window->grabWindow().save(path)){qCritical()<<"FAIL: serial scene capture";app.exit(18);}});
+            }
+        });
+        QObject::connect(hardwareMaster.get(),&SerialMaster::completedDemo,&app,[&,captured]{if(!*captured||!qmlWarnings.isEmpty()){qCritical().noquote()<<"FAIL: serial scene UI"<<qmlWarnings.join('\n');app.exit(19);}});
+    }
     if(args.contains("--smoke-test")){
         auto interactionOk=std::make_shared<bool>(true);
         QTimer::singleShot(400,&app,[&,interactionOk]{

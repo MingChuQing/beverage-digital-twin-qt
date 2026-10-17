@@ -23,7 +23,7 @@ for origin, name in [("example4", "baseline"), ("example5", "extended")]:
 
 profile = json.loads((configuration / "demo_profile.json").read_text(encoding="utf-8"))
 profile["source"] = "industrial_config_engine/examples/beverage_full/example4 → example5"
-profile["notice"] = "外部 JSON 选择口味和规格、生产点、容量与灌装时长；三维 PR 映射为展示标定，不执行完整 L1/L2，不打开串口。"
+profile["notice"] = "外部 JSON 驱动配方与点位；支持单串口 Modbus RTU 接收和离线模拟。PR 空间为展示标定，设备反馈由虚拟模型计算。"
 keys = ["home", "empty", "empty", "rinse", "fill", "fill", "fill", "closure", "code", "finished", "home", "home"]
 actives = [["X","Y1","Y2","Z"], ["Infeed","Gripper","ContainerSensor"], ["BottleSensor","ContainerSensor"], ["RinseValve","PressureSensor"], ["X","Y1","Y2","Z"], ["${fill_device}","FlowMeter","LevelSensor","PressureSensor"], ["LevelSensor"], ["Closure","CapFeeder","Relay","Torque"], ["Relay","BottleSensor"], ["Gripper","Outfeed","BottleSensor"], ["CIPValve","RinseValve","PressureSensor","Relay"], ["X","Y1","Y2","Z"]]
 for i, step in enumerate(profile["steps"]):

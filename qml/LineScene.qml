@@ -176,7 +176,7 @@ Node {
             visible: twin.hasContainer
             position: Qt.vector3d(0,2.3-twin.axisZ-Number(twin.containerShape.height),0)
             shape: twin.containerShape; juiceColor: twin.flavorColor
-            fillFraction: twin.fillFraction; capped: twin.currentStep >= 8; deviceId: "Gripper"
+            fillFraction: twin.fillFraction; capped: twin.containerCapped; deviceId: "Gripper"
         }
     }
 

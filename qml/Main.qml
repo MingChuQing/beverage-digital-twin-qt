@@ -67,9 +67,10 @@ ApplicationWindow {
                 }
                 Item {Layout.fillWidth:true}
                 Rectangle {
-                    Layout.preferredWidth: 136; Layout.preferredHeight: 28; radius: 14; color: "#163833"; border.color: "#2a5c51"
-                    Text {anchors.centerIn:parent;text:"●  模拟数据 · 演示版";color:accent;font.pixelSize:12}
+                    Layout.preferredWidth: 166; Layout.preferredHeight: 28; radius: 14; color: "#163833"; border.color: "#2a5c51"
+                    Text {anchors.centerIn:parent;text:bus.serialMode?"●  Modbus RTU 接收":"●  离线模拟 · 演示版";color:accent;font.pixelSize:12}
                 }
+                ActionButton {text:bus.serialMode?"切换离线演示":"切换串口接收";onClicked:bus.serialMode=!bus.serialMode}
                 Text {text:"Qt 5.14 / Quick 3D";color:muted;font.pixelSize:12}
             }
         }
@@ -84,17 +85,17 @@ ApplicationWindow {
                         Text {anchors.centerIn:parent;text:twin.profileIndex?"扩展版 · 9 个配方":"原版 · 6 个配方";color:twin.profileIndex?"#b4df99":ink;font.bold:true;font.pixelSize:12}
                     }
                     Text {text:"口味";color:muted;font.pixelSize:12}
-                    ComboBox {id:flavorBox;objectName:"flavorBox";Layout.preferredWidth:120;Layout.preferredHeight:34;model:twin.flavorLabels;currentIndex:twin.flavorIndex;onActivated:twin.selectRecipe(currentIndex,twin.formatIndex)}
+                    ComboBox {id:flavorBox;objectName:"flavorBox";enabled:!bus.serialMode;Layout.preferredWidth:120;Layout.preferredHeight:34;model:twin.flavorLabels;currentIndex:twin.flavorIndex;onActivated:twin.selectRecipe(currentIndex,twin.formatIndex)}
                     Text {text:"包装";color:muted;font.pixelSize:12}
-                    ComboBox {id:formatBox;objectName:"formatBox";Layout.preferredWidth:164;Layout.preferredHeight:34;model:twin.formatLabels;currentIndex:twin.formatIndex;onActivated:twin.selectRecipe(twin.flavorIndex,currentIndex)}
+                    ComboBox {id:formatBox;objectName:"formatBox";enabled:!bus.serialMode;Layout.preferredWidth:164;Layout.preferredHeight:34;model:twin.formatLabels;currentIndex:twin.formatIndex;onActivated:twin.selectRecipe(twin.flavorIndex,currentIndex)}
                     Item {Layout.fillWidth:true}
-                    ActionButton {objectName:"profileButton";text:twin.profileIndex?"切回原版两规格":"为三种口味增加 250 mL";primary:true;onClicked:twin.loadProfile(twin.profileIndex?0:1)}
-                    ActionButton {objectName:"reloadButton";text:"重载配置";onClicked:twin.reloadConfig();ToolTip.visible:hovered;ToolTip.text:twin.configLocation}
+                    ActionButton {objectName:"profileButton";enabled:!bus.serialMode;text:twin.profileIndex?"切回原版两规格":"为三种口味增加 250 mL";primary:true;onClicked:twin.loadProfile(twin.profileIndex?0:1)}
+                    ActionButton {objectName:"reloadButton";enabled:!bus.serialMode;text:"重载配置";onClicked:twin.reloadConfig();ToolTip.visible:hovered;ToolTip.text:twin.configLocation}
                 }
                 RowLayout {
                     spacing:12
                     Text {text:"3 个共用灌装头  ·  "+twin.formatLabels.length+" 种包装  ·  "+twin.deviceCount+" 个设备端点";color:accent;font.pixelSize:11}
-                    Text {text:twin.recipe.id+"  /  "+twin.volumeMl+" mL  /  设定 "+twin.recipe.fill_time_ms+" ms";color:ink;font.pixelSize:11;Layout.fillWidth:true;elide:Text.ElideRight}
+                    Text {text:twin.recipe.id+"  /  "+twin.volumeMl+" mL  /  设定 "+(bus.serialMode?bus.targetTime:twin.recipe.fill_time_ms)+" ms";color:ink;font.pixelSize:11;Layout.fillWidth:true;elide:Text.ElideRight}
                     Text {text:twin.loadMessage;color:muted;font.pixelSize:11}
                 }
             }
@@ -102,6 +103,19 @@ ApplicationWindow {
         Rectangle {
             Layout.fillWidth:true;Layout.preferredHeight:54;color:"#102033"
             RowLayout {
+                visible:bus.serialMode
+                anchors.fill:parent;anchors.leftMargin:18;anchors.rightMargin:18;spacing:8
+                Text {text:"接收串口";color:muted;font.pixelSize:12}
+                ComboBox {id:receiverPort;objectName:"receiverPort";editable:true;model:bus.availablePorts;currentIndex:bus.availablePorts.indexOf(bus.portName);editText:bus.portName;Component.onCompleted:editText=bus.portName;Layout.preferredWidth:115;Layout.preferredHeight:34;enabled:!bus.connected}
+                ComboBox {id:receiverBaud;model:["9600","19200","38400","57600","115200"];currentIndex:model.indexOf(String(bus.baudRate));Layout.preferredWidth:104;Layout.preferredHeight:34;enabled:!bus.connected}
+                ActionButton {text:"刷新";onClicked:bus.refreshPorts()}
+                ActionButton {objectName:"connectSerialButton";text:bus.connected?"关闭串口":"打开串口";primary:!bus.connected;onClicked:bus.connected?bus.closePort():bus.openPort(receiverPort.editText,Number(receiverBaud.currentText))}
+                Text {text:bus.status;color:bus.connected?accent:muted;font.pixelSize:11;Layout.fillWidth:true;elide:Text.ElideRight}
+                Text {text:"RX "+bus.rxCount+" / TX "+bus.txCount+" / CRC "+bus.crcErrors;color:muted;font.pixelSize:11}
+                ActionButton {text:"打开发送端";onClicked:bus.launchSender()}
+            }
+            RowLayout {
+                visible:!bus.serialMode
                 anchors.fill:parent;anchors.leftMargin:18;anchors.rightMargin:18;spacing:8
                 ActionButton {objectName:"startButton";text:twin.running?"运行中":"开始 / 继续";primary:true;enabled:!twin.running&&twin.fault==="";onClicked:twin.start()}
                 ActionButton {objectName:"pauseButton";text:"暂停";enabled:twin.running;onClicked:twin.pause()}
@@ -165,7 +179,7 @@ ApplicationWindow {
                             MouseArea {id:mouse;anchors.fill:parent;hoverEnabled:true;cursorShape:Qt.PointingHandCursor;onClicked:twin.selectDevice(deviceId)}
                         }
                     }
-                    Text {text:"端口 / 站号来自原项目配置\n当前未连接串口设备";color:muted;font.pixelSize:11;lineHeight:1.5}
+                    Text {text:bus.serialMode?"单串口站号来自统一配置\n"+bus.portName+" / Modbus RTU":"离线演示模式\n未打开串口";color:muted;font.pixelSize:11;lineHeight:1.5}
                 }
             }
             Rectangle {Layout.preferredWidth:1;Layout.fillHeight:true;color:line}
@@ -230,8 +244,8 @@ ApplicationWindow {
                         anchors.right:parent.right;anchors.top:parent.top;anchors.margins:14
                         width:110;height:48;radius:6;color:"#152c3f";border.color:"#2b455c"
                         Column {anchors.centerIn:parent;spacing:1
-                            Text {text:"模拟成品";color:muted;font.pixelSize:11;anchors.horizontalCenter:parent.horizontalCenter}
-                            Text {text:twin.completed+" / "+(twin.recipe.batches*twin.recipe.units_per_batch)+" 件";color:ink;font.pixelSize:17;font.bold:true;anchors.horizontalCenter:parent.horizontalCenter}
+                            Text {text:bus.serialMode?"主站成品计数":"模拟成品";color:muted;font.pixelSize:11;anchors.horizontalCenter:parent.horizontalCenter}
+                            Text {text:bus.serialMode?twin.completed+" 件":twin.completed+" / "+(twin.recipe.batches*twin.recipe.units_per_batch)+" 件";color:ink;font.pixelSize:17;font.bold:true;anchors.horizontalCenter:parent.horizontalCenter}
                         }
                     }
                     Row {
@@ -280,7 +294,7 @@ ApplicationWindow {
                         anchors.fill:parent;anchors.margins:12;spacing:4
                         RowLayout {Text {text:"事件记录";color:ink;font.pixelSize:12} Item {Layout.fillWidth:true} Text {text:"最多保留 80 条";color:muted;font.pixelSize:10}}
                         ListView {
-                            Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:twin.eventLog;spacing:3
+                            Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:bus.serialMode?bus.frames:twin.eventLog;spacing:3
                             delegate:Text {width:ListView.view.width;text:modelData;color:index===0?"#bfd9e9":muted;font.pixelSize:11;elide:Text.ElideRight}
                             ScrollBar.vertical:ScrollBar {}
                         }
@@ -311,9 +325,9 @@ ApplicationWindow {
                         GridLayout {
                             Layout.fillWidth:true;Layout.leftMargin:18;Layout.rightMargin:18;Layout.topMargin:16;columns:2;columnSpacing:12;rowSpacing:9
                             Text {text:"端口 / 站号";color:muted;font.pixelSize:12}
-                            Text {text:(selected.port||"")+" / "+(selected.station||"")+"（示例）";color:ink;font.pixelSize:12;Layout.fillWidth:true}
+                            Text {text:(selected.port||"")+" / "+(selected.station||"")+(bus.serialMode?"":"（示例）");color:ink;font.pixelSize:12;Layout.fillWidth:true}
                             Text {text:"数据质量";color:muted;font.pixelSize:12}
-                            Text {text:selected.quality||"";color:selected.statusKind==="fault"?"#ff8796":ink;font.pixelSize:12}
+                            Text {text:selected.quality||"";color:selected.statusKind==="fault"?"#ff8796":ink;font.pixelSize:11;Layout.fillWidth:true;wrapMode:Text.Wrap}
                             Text {text:"采样年龄";color:muted;font.pixelSize:12}
                             Text {text:((selected.ageMs||0)/1000).toFixed(2)+" s";color:ink;font.pixelSize:12}
                         }
@@ -323,7 +337,7 @@ ApplicationWindow {
                         Text {Layout.leftMargin:18;Layout.rightMargin:18;Layout.fillWidth:true;Layout.topMargin:5;text:selected.point||"";color:ink;font.family:"Consolas";font.pixelSize:12;wrapMode:Text.WrapAnywhere}
                         Text {Layout.leftMargin:18;Layout.rightMargin:18;Layout.fillWidth:true;Layout.topMargin:7;text:selected.rawText||"";color:muted;font.pixelSize:11;wrapMode:Text.Wrap}
                         Text {Layout.leftMargin:18;Layout.rightMargin:18;Layout.fillWidth:true;Layout.topMargin:10;text:selected.note||"";color:muted;font.pixelSize:11;wrapMode:Text.Wrap;lineHeight:1.4}
-                        Text {Layout.leftMargin:18;Layout.topMargin:16;text:"最近采样 · 模拟趋势";color:muted;font.pixelSize:12;visible:!!selected.numeric}
+                        Text {Layout.leftMargin:18;Layout.topMargin:16;text:bus.serialMode?"最近采样 · 虚拟设备反馈":"最近采样 · 模拟趋势";color:muted;font.pixelSize:12;visible:!!selected.numeric}
                         Canvas {
                             id:trend;Layout.fillWidth:true;Layout.leftMargin:18;Layout.rightMargin:18;Layout.topMargin:8;Layout.preferredHeight:66;visible:!!selected.numeric
                             property var points:twin.history
@@ -367,20 +381,20 @@ ApplicationWindow {
                                 Text {text:modelData.label;color:index===twin.currentStep?accent:ink;Layout.fillWidth:true;font.pixelSize:12}
                                 Text {visible:index===twin.currentStep;text:Math.floor(twin.progress*100)+"%";color:accent;font.pixelSize:11}
                             }
-                            MouseArea {anchors.fill:parent;cursorShape:Qt.PointingHandCursor;enabled:twin.fault==="";onClicked:twin.jumpToStep(index)}
+                            MouseArea {anchors.fill:parent;cursorShape:Qt.PointingHandCursor;enabled:twin.fault===""&&!bus.serialMode;onClicked:twin.jumpToStep(index)}
                         }
                     }
                 }
-                Text {text:"点击阶段可单独预览（不计产量） · 完整运行按 "+twin.recipe.batches+" 批 × "+twin.recipe.units_per_batch+" 件生产，全部完成后执行 CIP · 短灌装动作放慢至 3 秒便于观察";color:muted;font.pixelSize:11}
+                Text {text:bus.serialMode?"串口模式：由外部主站发送 PR / 灌装 / 阀门指令；阶段标签由站 240 提供，设备反馈为虚拟计算":"点击阶段可单独预览（不计产量） · 完整运行按 "+twin.recipe.batches+" 批 × "+twin.recipe.units_per_batch+" 件生产，全部完成后执行 CIP · 短灌装动作放慢至 3 秒便于观察";color:muted;font.pixelSize:11}
             }
         }
         Rectangle {
             Layout.fillWidth:true;Layout.preferredHeight:27;color:"#0b1726"
             RowLayout {
                 anchors.fill:parent;anchors.leftMargin:18;anchors.rightMargin:18
-                Text {text:"数据源：内置模拟器  /  20 Hz 状态更新  /  未打开串口";color:"#7992aa";font.pixelSize:11}
+                Text {text:bus.serialMode?"数据源：单串口 Modbus RTU / 指令真实接收，设备反馈为虚拟计算":"数据源：内置模拟器 / 未打开串口";color:"#7992aa";font.pixelSize:11}
                 Item {Layout.fillWidth:true}
-                Text {text:"PR 空间映射为示意 · beverage_full / "+(twin.profileIndex?"example5":"example4")+" · v0.2";color:"#7992aa";font.pixelSize:11}
+                Text {text:"PR 空间映射为示意 · beverage_full / "+(twin.profileIndex?"example5":"example4")+" · v0.3";color:"#7992aa";font.pixelSize:11}
             }
         }
     }

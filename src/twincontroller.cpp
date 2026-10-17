@@ -255,23 +255,24 @@ int TwinController::currentPointIndex(double fraction) const{
     bool traversing=m_step==1||m_step==3||m_step==4||m_step==7||m_step==8||m_step==9;
     return m_recipe.value(stage+((traversing&&(fraction<0?progress():fraction)<.4)?"_entry":"_work")).toInt();
 }
-QString TwinController::productionPoint() const{auto p=scenePoint(currentPointIndex());return QString("点 %1  ·  %2").arg(p.value("index").toInt()).arg(p.value("prText").toString());}
+QString TwinController::productionPoint() const{if(serialDriven())return QString("外部阶段 %1 · X/Y1/Y2/Z 独立 PR 指令").arg(currentStep()+1);auto p=scenePoint(currentPointIndex());return QString("点 %1  ·  %2").arg(p.value("index").toInt()).arg(p.value("prText").toString());}
 double TwinController::duration() const{return m_step==5?qMax(3.,m_recipe.value("fill_time_ms").toDouble()/1000.):qMax(.1,m_steps.value(m_step).toMap().value("duration").toDouble());}
-double TwinController::progress() const{return qBound(0.,m_elapsed/duration(),1.);}
+double TwinController::progress() const{if(serialDriven())return m_plant->stageProgress();return qBound(0.,m_elapsed/duration(),1.);}
 int TwinController::totalUnits() const{return m_recipe.value("batches").toInt()*m_recipe.value("units_per_batch").toInt();}
 QString TwinController::batchCaption() const{
+    if(serialDriven())return "单串口 / 外部主站控制";
     if(m_preview)return "阶段预览 · 不计入配方产量";
     int per=qMax(1,m_recipe.value("units_per_batch").toInt()),batches=m_recipe.value("batches").toInt();
     if(m_completed>=totalUnits())return QString("已完成 %1 批 × %2 件").arg(batches).arg(per);
     return QString("第 %1/%2 批 · 第 %3/%4 件").arg(m_completed/per+1).arg(batches).arg(m_completed%per+1).arg(per);
 }
-QString TwinController::currentStepName() const{QString name=m_steps.value(m_step).toMap().value("label").toString();if(m_step==7)name+=m_recipe.value("closure_mode").toString()=="seam_can"?" / 卷封":" / 旋盖";return name;}
-QString TwinController::modeText() const{if(!m_fault.isEmpty())return "故障暂停";if(m_ended)return "本配方完成";return m_running?"模拟运行中":"模拟已暂停";}
+QString TwinController::currentStepName() const{QString name=m_steps.value(currentStep()).toMap().value("label").toString();if(currentStep()==7)name+=m_recipe.value("closure_mode").toString()=="seam_can"?" / 卷封":" / 旋盖";return name;}
+QString TwinController::modeText() const{if(serialDriven())return m_plant->status();if(!m_fault.isEmpty())return "故障暂停";if(m_ended)return "本配方完成";return m_running?"模拟运行中":"模拟已暂停";}
 void TwinController::addLog(const QString &s){m_logs.prepend(QTime::currentTime().toString("HH:mm:ss")+"  "+s);while(m_logs.size()>80)m_logs.removeLast();emit logChanged();}
 void TwinController::selectDevice(const QString &id){if(m_model.device(id).isEmpty()||m_selected==id)return;m_selected=id;emit stateChanged();}
-void TwinController::start(){if(!m_fault.isEmpty()||!m_configError.isEmpty())return;if(m_ended){reset();}if(m_running)return;m_running=true;addLog("开始模拟 · "+recipeCaption()+" · "+currentStepName());publish();}
-void TwinController::pause(){if(!m_running)return;m_running=false;addLog("暂停，保持容器与机械位置");publish();}
-void TwinController::reset(){
+void TwinController::start(){if(serialDriven())return;if(!m_fault.isEmpty()||!m_configError.isEmpty())return;if(m_ended){reset();}if(m_running)return;m_running=true;addLog("开始模拟 · "+recipeCaption()+" · "+currentStepName());publish();}
+void TwinController::pause(){if(serialDriven())return;if(!m_running)return;m_running=false;addLog("暂停，保持容器与机械位置");publish();}
+void TwinController::reset(){if(serialDriven())return;
     m_running=false;m_ended=false;m_preview=false;m_fault.clear();m_faultDevice.clear();m_faultKey.clear();m_step=0;m_completed=0;
     m_elapsed=m_clock=m_historyClock=m_belt=m_fill=m_capAngle=m_pressure=m_torque=0;
     auto home=scenePoint(m_recipe.value("home_point").toInt());m_x=home.value("sx").toDouble();m_y=home.value("sz").toDouble();m_z=home.value("lift").toDouble();
@@ -291,9 +292,9 @@ void TwinController::finishStep(){
         if(m_loop){m_completed=0;m_preview=false;enterStep(0);}else{m_running=false;m_ended=true;m_elapsed=duration();addLog("本配方结束：CIP 与回零完成");}
     }else enterStep(m_step+1);
 }
-void TwinController::nextStep(){if(!m_fault.isEmpty()||!m_configError.isEmpty()||m_ended)return;simulate(qMax(0.,duration()-m_elapsed));m_elapsed=duration();finishStep();publish();}
-void TwinController::jumpToStep(int i){if(i<0||i>=12||!m_fault.isEmpty())return;m_running=false;m_ended=false;m_preview=true;m_filled=m_capped=m_discharged=false;m_fill=0;enterStep(i);publish();}
-void TwinController::injectFault(const QString &key){
+void TwinController::nextStep(){if(serialDriven())return;if(!m_fault.isEmpty()||!m_configError.isEmpty()||m_ended)return;simulate(qMax(0.,duration()-m_elapsed));m_elapsed=duration();finishStep();publish();}
+void TwinController::jumpToStep(int i){if(serialDriven())return;if(i<0||i>=12||!m_fault.isEmpty())return;m_running=false;m_ended=false;m_preview=true;m_filled=m_capped=m_discharged=false;m_fill=0;enterStep(i);publish();}
+void TwinController::injectFault(const QString &key){if(serialDriven())return;
     if(!m_fault.isEmpty())return;
     if(key=="offline"){m_fault="流量计离线：当前值无效，最后有效值冻结";m_faultDevice="FlowMeter";}
     else if(key=="axis"){m_fault="Y2 驱动器报警，双 Y 轴暂停";m_faultDevice="Y2";}
@@ -301,7 +302,7 @@ void TwinController::injectFault(const QString &key){
     else return;
     m_faultKey=key;m_running=false;m_selected=m_faultDevice;addLog("故障注入 · "+m_fault);publish();
 }
-void TwinController::clearFault(){if(m_fault.isEmpty())return;addLog("故障清除，请手动继续");m_fault.clear();m_faultDevice.clear();m_faultKey.clear();publish();}
+void TwinController::clearFault(){if(serialDriven())return;if(m_fault.isEmpty())return;addLog("故障清除，请手动继续");m_fault.clear();m_faultDevice.clear();m_faultKey.clear();publish();}
 void TwinController::simulate(double dt){
     auto target=scenePoint(currentPointIndex(qBound(0.,(m_elapsed+dt)/duration(),1.)));
     double f=1-std::exp(-dt*2.5);m_x+=(target.value("sx").toDouble()-m_x)*f;m_y+=(target.value("sz").toDouble()-m_y)*f;m_z+=(target.value("lift").toDouble()-m_z)*f;
@@ -313,14 +314,30 @@ void TwinController::simulate(double dt){
 }
 void TwinController::advance(double dt){
     if(dt<=0||!qIsFinite(dt))return;
+    if(serialDriven()){m_historyClock+=dt;return;}
     m_clock+=dt;
-    if(m_running&&m_fault.isEmpty()){
+    if(!serialDriven()&&m_running&&m_fault.isEmpty()){
         double left=dt*m_speed;
         while(left>1e-8&&m_running){double slice=qMin(left,qMax(0.,duration()-m_elapsed));simulate(slice);m_elapsed+=slice;left-=slice;if(m_elapsed+1e-8>=duration())finishStep();else break;}
     }
     m_historyClock+=dt;publish();
 }
+bool TwinController::applySerialRecipe(int profile,int flavor,int format){
+    if(profile<0||profile>1||flavor<0||flavor>2||format<0||format>(profile?2:1))return false;
+    if(profile!=m_profile&&!loadProfile(profile))return false;
+    return selectRecipe(flavor,format);
+}
 void TwinController::publish(){
+    if(serialDriven()){
+        const bool record=m_historyClock>=.2;if(record)m_historyClock=0;
+        for(int i=0;i<m_model.rowCount();++i){auto row=m_model.row(i);QString id=row.value("deviceId").toString();auto state=m_plant->snapshot(id);
+            if(!state.value("value").isValid())state["lastValid"]=row.value("lastValid","—");
+            for(auto it=state.begin();it!=state.end();++it)row[it.key()]=it.value();
+            if(record){auto &history=m_history[id];history.append(state.value("value"));while(history.size()>64)history.removeFirst();}
+            m_model.updateRow(i,row);
+        }
+        ++m_revision;emit stateChanged();return;
+    }
     auto active=m_steps.value(m_step).toMap().value("active").toList();
     for(auto &value:active)if(value.toString()=="${fill_device}")value=activeFillDevice();
     const bool record=m_historyClock>=.2;if(record)m_historyClock=0;

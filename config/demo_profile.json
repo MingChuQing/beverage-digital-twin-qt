@@ -1,7 +1,7 @@
 {
   "name": "饮料灌装数字孪生 · 演示版",
   "source": "industrial_config_engine/examples/beverage_full/example4 → example5",
-  "notice": "外部 JSON 选择口味和规格、生产点、容量与灌装时长；三维 PR 映射为展示标定，不执行完整 L1/L2，不打开串口。",
+  "notice": "外部 JSON 驱动配方与点位；支持单串口 Modbus RTU 接收和离线模拟。PR 空间为展示标定，设备反馈由虚拟模型计算。",
   "steps": [
     {
       "label": "系统初始化",
