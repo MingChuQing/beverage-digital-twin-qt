@@ -402,7 +402,8 @@
       },
       "write_registers": {},
       "write_coils": {
-        "19": "enable"
+        "19": "enable",
+        "20": "drain"
       }
     },
     "Relay": {

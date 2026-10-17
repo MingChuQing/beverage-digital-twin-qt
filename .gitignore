@@ -13,3 +13,5 @@ demo-screenshot*.png
 !demo-screenshot-extended.png
 .DS_Store
 Thumbs.db
+ai-sessions/
+runtime/

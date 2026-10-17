@@ -126,7 +126,11 @@ public:
     QVariantList formatStations() const;
     QVariantList routeSegments() const;
     QVariantList pointCards() const;
-    QString configLocation() const{return m_configRoot+"/recipes/"+(m_profile?"extended":"baseline");}
+    QString configLocation() const{return m_profile&&!m_candidateDirectory.isEmpty()?m_candidateDirectory:m_configRoot+"/recipes/"+(m_profile?"extended":"baseline");}
+    bool loadCandidateDirectory(const QString &);
+    QString activationPath() const{return m_activationPath;}
+    void setActivationPath(const QString &path,bool allowTest=false){m_activationPath=path;m_allowTestActivation=allowTest;}
+    bool publishCandidateActivation(const QString &report,bool testing,QString &error);
     QString configurationRoot() const{return m_configRoot;}
     void attachPlant(SerialPlant *plant){
         m_plant=plant;
@@ -163,6 +167,10 @@ signals:
     void configChanged();
     void recipeChanged();
 private:
+    QString m_candidateDirectory;
+    QString m_activationPath;
+    bool m_allowTestActivation=false;
+    bool loadSharedCandidate();
     double duration() const;
     int totalUnits() const;
     int currentPointIndex(double fraction=-1) const;

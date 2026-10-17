@@ -163,7 +163,8 @@ bool SerialPlant::applyControl(const QList<QPair<int,int>> &writes){
     int next[6];std::copy(m_control,m_control+6,next);auto c=m_config.value("line_control").toObject();const QStringList fields={"profile_register","flavor_register","format_register","stage_register","command_register","completed_register"};
     for(const auto &w:writes){int index=-1;for(int i=0;i<6;++i)if(c.value(fields[i]).toInt()==w.first)index=i;if(index<0)return false;next[index]=w.second;}
     if(next[0]>1||next[1]>2||next[2]>(next[0]?2:1)||next[3]>11||next[4]>3)return false;
-    if(next[0]!=m_control[0]||next[1]!=m_control[1]||next[2]!=m_control[2]){if(!m_twin->applySerialRecipe(next[0],next[1],next[2]))return false;auto &d=m_devices[m_twin->activeFillDevice()];d.volume=m_twin->recipe().value("volume_ml").toInt();d.fillTime=m_twin->recipe().value("fill_time_ms").toInt();}
+    bool recipeWritten=false;for(const auto &w:writes)for(int i=0;i<3;++i)recipeWritten|=w.first==c.value(fields[i]).toInt();
+    if(recipeWritten||next[0]!=m_control[0]||next[1]!=m_control[1]||next[2]!=m_control[2]){if(!m_twin->applySerialRecipe(next[0],next[1],next[2]))return false;auto &d=m_devices[m_twin->activeFillDevice()];d.volume=m_twin->recipe().value("volume_ml").toInt();d.fillTime=m_twin->recipe().value("fill_time_ms").toInt();}
     for(const auto &w:writes)if(w.first==c.value("stage_register").toInt())m_explicitStage=true;
     bool commandWritten=false;for(const auto &w:writes)commandWritten|=w.first==c.value("command_register").toInt();
     if(commandWritten){if(next[4]==3){resetPlant();next[3]=0;next[4]=0;next[5]=0;}else m_paused=next[4]!=1;}

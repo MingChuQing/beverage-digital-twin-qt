@@ -5,14 +5,21 @@ import QtQuick.Layouts 1.14
 
 ApplicationWindow {
     id: senderWindow
-    visible:true;width:1160;height:850;minimumWidth:1040;minimumHeight:820
-    title:"Modbus RTU 指令发送端 · 饮料灌装联调"
+    visible:true;width:1240;height:960;minimumWidth:1120;minimumHeight:900
+    title:"DeepSeek 配置生成与验证 · 饮料数字孪生演示"
     color:"#0b1726";font.family:"Microsoft YaHei";font.pixelSize:13
     palette.window:"#102033";palette.base:"#15283c";palette.button:"#15283c";palette.text:"#dbe9f5";palette.buttonText:"#dbe9f5";palette.windowText:"#dbe9f5";palette.highlight:"#27665c"
     property color ink:"#dbe9f5"
     property color muted:"#879eb5"
     property color accent:"#6ee3c3"
     property int selectedStation:master.address(master.deviceIds[deviceBox.currentIndex]||"X")
+    TabBar {id:senderTabs;anchors.top:parent.top;anchors.left:parent.left;anchors.right:parent.right;anchors.margins:20;height:40
+        TabButton {text:"AI 配置生成 · 论文演示"}
+        TabButton {text:"Modbus 串口联调"}
+    }
+    StackLayout {anchors.fill:parent;anchors.margins:20;anchors.topMargin:72;currentIndex:senderTabs.currentIndex
+    AiPanel {onSerialSettings:senderTabs.currentIndex=1}
+    Item {
     ColumnLayout {
         anchors.fill:parent;anchors.margins:20;spacing:12
         RowLayout {
@@ -114,5 +121,7 @@ ApplicationWindow {
             }
         }
         Text {text:"接线：一根线 TX → 另一根 RX，两根反向互接并连接 GND；VCC 不相接。两个程序各占用一个端口。";color:muted;font.pixelSize:11}
+    }
+    }
     }
 }

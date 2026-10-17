@@ -6,6 +6,7 @@
   <file>qml/LineScene.qml</file>
   <file>qml/Main.qml</file>
   <file>qml/Sender.qml</file>
+  <file>qml/AiPanel.qml</file>
   <file>config/demo_profile.json</file>
   <file>config/recipes/baseline/device_registry.json</file>
   <file>config/recipes/baseline/layered/L1_action/all_actions.json</file>

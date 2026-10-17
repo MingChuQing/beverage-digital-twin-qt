@@ -1,5 +1,6 @@
 #include "twincontroller.h"
 #include "serialmaster.h"
+#include "aicontroller.h"
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QSet>
@@ -26,13 +27,15 @@ int main(int argc,char **argv){
     QGuiApplication app(argc,argv);
     app.setFont(QFont("Microsoft YaHei",10));
     QLoggingCategory::setFilterRules("QSSG.trace_info=false");
-    app.setOrganizationName("IndustrialConfigEngine");app.setApplicationName("BeverageTwinDemo");app.setApplicationVersion("0.3.0");
+    app.setOrganizationName("IndustrialConfigEngine");app.setApplicationName("BeverageTwinDemo");app.setApplicationVersion("0.4.0");
     const auto args=app.arguments();
+    auto optionText=[&args](const QString &name,const QString &fallback){int i=args.indexOf(name);return i>=0?args.value(i+1):fallback;};
     if(args.contains("--self-test")){QString error;bool ok=TwinController::selfTest(&error);qInfo().noquote()<< (ok?"PASS: 6/9 recipe configuration, shared filling heads, point mapping, batch simulation, pause, offline and faults":"FAIL: "+error);return ok?0:1;}
     if(args.contains("--list-ports")){qInfo().noquote()<<QJsonDocument(QJsonArray::fromStringList(Rtu::ports())).toJson(QJsonDocument::Compact);return 0;}
     if(args.contains("--rtu-self-test")){QString error;bool ok=SerialPlant::selfTest(&error);qInfo().noquote()<<(ok?"PASS: RTU CRC, framing, commands, replies, addresses, atomic writes, quality, motion, filling, master loopback":"FAIL: "+error);return ok?0:1;}
     QQuickStyle::setStyle("Fusion");
     TwinController twin(nullptr,!args.contains("--sender"));
+    twin.setActivationPath(optionText("--ai-active-file",twin.activationPath()),args.contains("--ai-playback-test")||args.contains("--ai-allow-test-profile"));
     if(!twin.configError().isEmpty()){qCritical().noquote()<<twin.configError();return 2;}
     if(args.contains("--extended")&&!twin.loadProfile(1))return 2;
     auto optionNumber=[&args](const QString &name){int i=args.indexOf(name);if(i<0)return 0;bool valid=false;int value=args.value(i+1).toInt(&valid);return valid?value:-1;};
@@ -41,9 +44,9 @@ int main(int argc,char **argv){
     if(!bus.configError().isEmpty()){qCritical().noquote()<<bus.configError();return 13;}
     twin.attachPlant(&bus);
     SerialMaster master(&twin,bus.protocol(),bus.registry());
+    AiController ai(&twin,&master);
     const bool sender=args.contains("--sender");
     bus.setSerialMode(!sender&&!args.contains("--offline")&&!args.contains("--smoke-test"));
-    auto optionText=[&args](const QString &name,const QString &fallback){int i=args.indexOf(name);return i>=0?args.value(i+1):fallback;};
     std::shared_ptr<SerialMaster> hardwareMaster;
     if(args.contains("--serial-smoke-test")||args.contains("--serial-gui-test")){
         QString receiver=optionText("--receiver-port","COM10"),transmitter=optionText("--sender-port","COM3");
@@ -70,6 +73,7 @@ int main(int argc,char **argv){
     engine.rootContext()->setContextProperty("twin",&twin);
     engine.rootContext()->setContextProperty("bus",&bus);
     engine.rootContext()->setContextProperty("master",&master);
+    engine.rootContext()->setContextProperty("ai",&ai);
     engine.rootContext()->setContextProperty("demoSmallWindow",args.contains("--small-window"));
     qInfo()<<"Loading demo QML";
     engine.load(QUrl(sender?"qrc:/qml/Sender.qml":"qrc:/qml/Main.qml"));
@@ -77,6 +81,39 @@ int main(int argc,char **argv){
     auto window=qobject_cast<QQuickWindow*>(engine.rootObjects().first());
     if(!window)return 4;
     qInfo()<<"Demo window ready"<<window->size();
+    if(sender&&args.contains("--ai-report")){
+        if(args.contains("--ai-playback-test"))ai.enableAutomatedTest();
+        ai.previewReport(optionText("--ai-report",QString()));
+    }
+    if(sender&&args.contains("--ai-playback-test")){
+        auto testPhase=std::make_shared<int>(0);
+        auto lastTraceStatus=std::make_shared<QString>();
+        auto timer=new QTimer(&app);timer->setInterval(150);
+        QObject::connect(timer,&QTimer::timeout,&app,[&,testPhase,lastTraceStatus]{
+            QString traceStatus=QString::number(*testPhase)+" / "+ai.status()+" / "+master.status();
+            if(*lastTraceStatus!=traceStatus){*lastTraceStatus=traceStatus;qInfo().noquote()<<"AI TEST:"<<traceStatus;}
+            if(master.failures()>0){qCritical()<<"FAIL: AI playback serial"<<master.status();app.exit(32);return;}
+            if(*testPhase==0&&!ai.busy()&&!ai.ready()){qCritical()<<"FAIL: AI report preview"<<ai.status();app.exit(36);return;}
+            if(*testPhase==2&&!ai.busy()&&ai.gate()<4){qCritical()<<"FAIL: AI trace adapter"<<ai.status();app.exit(37);return;}
+            if(*testPhase==0&&ai.ready()&&!ai.busy()&&!master.busy()){
+                auto requirements=window->findChild<QObject*>("aiReviewRequirements");auto points=window->findChild<QObject*>("aiReviewPoints");auto button=window->findChild<QObject*>("aiApplyButton");
+                if(!requirements||!points||!button){qCritical()<<"FAIL: AI review controls missing";app.exit(33);return;}
+                requirements->setProperty("checked",true);points->setProperty("checked",true);
+                if(!button->property("enabled").toBool()){qCritical()<<"FAIL: AI review gate disabled";app.exit(33);return;}
+                *testPhase=1;QMetaObject::invokeMethod(button,"clicked");
+            }
+            if(*testPhase==1&&ai.applied()&&!ai.busy()&&!master.busy()){*testPhase=2;ai.replay(true);}
+        });timer->start();
+        QObject::connect(&master,&SerialMaster::completedDemo,&app,[&]{
+            QTimer::singleShot(100,&app,[&]{
+                QString capture=optionText("--capture",QString());auto shot=window->grabWindow();QSet<QRgb> colors;
+                if(!shot.isNull())for(int y=0;y<shot.height();y+=19)for(int x=0;x<shot.width();x+=19)colors.insert(shot.pixel(x,y));
+                bool ok=ai.applied()&&ai.gate()==4&&master.failures()==0&&master.acknowledgements()>60&&qmlWarnings.isEmpty()&&colors.size()>8&&(capture.isEmpty()||shot.save(capture));
+                qInfo().noquote()<<(ok?"PASS: original JSON activated, Qt review controls, validated trace over real serial (TEST_ONLY review)":"FAIL: AI native UI playback")<<"ACK"<<master.acknowledgements()<<qmlWarnings.join('\n');app.exit(ok?0:34);
+            });
+        });
+        QTimer::singleShot(110000,&app,[&]{qCritical()<<"FAIL: AI native playback timeout"<<ai.status()<<master.status();app.exit(35);});
+    }
     if(args.contains("--sender-demo-test")){
         QObject::connect(&master,&SerialMaster::changed,&app,[&]{if(master.failures()>0){qCritical().noquote()<<"FAIL: sender request"<<master.status()<<master.frames().mid(0,8).join('\n');app.exit(25);}});
         QTimer::singleShot(500,&app,[&]{master.startDemo();});
@@ -95,7 +132,16 @@ int main(int argc,char **argv){
         auto finishCheck=new QTimer(&app);finishCheck->setInterval(200);
         QObject::connect(finishCheck,&QTimer::timeout,&app,[&,captured]{
             if(twin.completed()!=1||twin.currentStep()!=11||bus.healthy()||bus.rxCount()<60)return;
-            bool ok=*captured&&bus.crcErrors()==0&&qAbs(twin.fillFraction()-1)<.001&&qAbs(twin.axisX()+6.8)<.02&&qmlWarnings.isEmpty();
+            bool metadata=true;
+            QString active=optionText("--ai-active-file",QString());
+            if(!active.isEmpty()){
+                QString error;auto activation=Rtu::object(active,error);auto candidate=Rtu::object(activation.value("candidate").toString()+"/system_variables.json",error);
+                auto rows=candidate.value("recipe_lookup").toArray();
+                if(rows.size()!=3||rows.at(2).toArray().size()!=3)metadata=false;
+                else metadata=error.isEmpty()&&candidate.value("recipes").toArray().at(rows.at(2).toArray().at(2).toInt()).toObject().toVariantMap()==twin.recipe();
+                qInfo()<<"AI receiver candidate metadata"<<metadata<<"fill point"<<twin.recipe().value("fill_work")<<"finished point"<<twin.recipe().value("finished_work");
+            }
+            bool ok=*captured&&bus.crcErrors()==0&&qAbs(twin.fillFraction()-1)<.001&&qAbs(twin.axisX()+6.8)<.02&&qmlWarnings.isEmpty()&&metadata;
             qInfo().noquote()<<(ok?"PASS: independent receiver UI, complete real serial cycle, physical link timeout freeze":"FAIL: receiver serial UI test")<<"RX"<<bus.rxCount()<<"CRC"<<bus.crcErrors()<<"count"<<twin.completed()<<"stage"<<twin.currentStep()<<"healthy"<<bus.healthy()<<qmlWarnings.join('\n');app.exit(ok?0:24);
         });finishCheck->start();
         QTimer::singleShot(100000,&app,[&]{qCritical()<<"FAIL: receiver did not finish"<<bus.status()<<twin.currentStep()<<twin.completed();app.exit(24);});

@@ -1,0 +1,61 @@
+{
+  "version": "0.4.0",
+  "date_local": "2026-10-18",
+  "timezone": "Asia/Shanghai",
+  "actual_api": {
+    "provider": "DeepSeek",
+    "model": "deepseek-flash",
+    "successful_session_rounds": 1,
+    "normal_recipes": 9,
+    "expected_fault_scenarios": 11,
+    "old_six_timed_traces_unchanged": true,
+    "evidence": "deepseek-live/report_summary.json"
+  },
+  "mock_tests": {
+    "passed": 5,
+    "scope": "Explicit local HTTP mock: invalid candidate then repair, real validators, frozen/path/duplicate-key/review/hash checks; not actual DeepSeek failures"
+  },
+  "targeted_probe_timeout_test": {
+    "passed": true,
+    "seconds": 0.154
+  },
+  "serial_tests": [
+    {
+      "name": "AI Qt sender / actual validated JSON",
+      "passed": true,
+      "exit_code": 0,
+      "output": "Loading demo QML\r\nDemo window ready QSize(1240, 960)\r\nAI TEST: 0 / 输入自然语言，开始 DeepSeek 配置生成 / 等待 Modbus 应答\r\nAI TEST: 0 / 输入自然语言，开始 DeepSeek 配置生成 / 串口已打开 · 自动轮询设备\r\nAI TEST: 0 / 输入自然语言，开始 DeepSeek 配置生成 / 等待 Modbus 应答\r\nAI TEST: 0 / 输入自然语言，开始 DeepSeek 配置生成 / 串口已打开 · 自动轮询设备\r\nAI TEST: 0 / 输入自然语言，开始 DeepSeek 配置生成 / 等待 Modbus 应答\r\nAI TEST: 0 / 已载入通过验证的历史记录，仍需本次人工审核 / 等待 Modbus 应答\r\nAI TEST: 0 / 已载入通过验证的历史记录，仍需本次人工审核 / 串口已打开 · 自动轮询设备\r\nAI TEST: 1 / 已载入通过验证的历史记录，仍需本次人工审核 / 串口已打开 · 自动轮询设备\r\nAI TEST: 1 / 已载入通过验证的历史记录，仍需本次人工审核 / 等待 Modbus 应答\r\nAI TEST: 1 / 自动化测试激活（不代表人工语义审核） / 等待 Modbus 应答\r\nAI TEST: 1 / 自动化测试激活（不代表人工语义审核） / 串口已打开 · 自动轮询设备\r\nAI TEST: 2 / 自动化测试激活（不代表人工语义审核） / 串口已打开 · 自动轮询设备\r\nAI TEST: 2 / 自动化测试激活（不代表人工语义审核） / 等待 Modbus 应答\r\nAI TEST: 2 / 自动化测试激活（不代表人工语义审核） / 串口已打开 · 自动轮询设备\r\nAI TEST: 2 / 自动化测试激活（不代表人工语义审核） / 等待 Modbus 应答\r\nAI TEST: 2 / 已验证 JSON 写轨迹：首瓶片段；工艺等待 50× 加速；运动/灌装按接收端实际时长 / 已验证配置写轨迹回放\r\nAI TEST: 2 / 已验证 JSON 写轨迹：首瓶片段；工艺等待 50× 加速；运动/灌装按接收端实际时长 / 等待 Modbus 应答\r\nPASS: original JSON activated, Qt review controls, validated trace over real serial (TEST_ONLY review) ACK 396 \r\n"
+    },
+    {
+      "name": "3D Qt receiver / physical serial",
+      "passed": true,
+      "exit_code": 0,
+      "output": "Loading demo QML\r\nDemo window ready QSize(1480, 1000)\r\nAI receiver candidate metadata true fill point QVariant(double, 42) finished point QVariant(double, 48)\r\nPASS: independent receiver UI, complete real serial cycle, physical link timeout freeze RX 396 CRC 0 count 1 stage 11 healthy false \r\n"
+    },
+    {
+      "name": "review recorded honestly as TEST_ONLY",
+      "passed": true
+    }
+  ],
+  "serial_review_disclosure": "TEST_ONLY control automation, not human semantic approval",
+  "activation": {
+    "receiver_candidate_metadata_matches": true,
+    "grape_fill_work": 42,
+    "finished_work": 48
+  },
+  "offline_gui_regression": "PASS: backend plus baseline and extended Qt GUI cases",
+  "rtu_backend": "PASS",
+  "limits": [
+    "AI case: three flavors gain 250mL using frozen engineering data",
+    "Gate validation is virtual; no physical equipment writes",
+    "Serial is validated write-trace replay, not online L1/L2 condition interpretation",
+    "Dwell waits 50x faster; motion/filling retain receiver duration; first-container excerpt counted as one",
+    "Sender/receiver share an approved hashed candidate on one computer"
+  ],
+  "source_sha256_lf_normalized": {
+    "ai/pipeline.py": "fb089bbb340a35d888e4468799e45454509485a7cc3a865d5a457f886ab91aa7",
+    "src/aicontroller.cpp": "38a69c7eaf4bf9de58ebef92c9c64004ab3f197a9057913cc6f5b0dd5f8f21a6",
+    "src/twincontroller.cpp": "cfccd8201c94eb9bb4231084515ccfde90f5140ca0dcce1f8192b8e7af388db8",
+    "config/serial/protocol.json": "bc8271bdeea79fb10136fc64ba2795649fe1b87e9c5cd90b76894ec19980bede"
+  }
+}

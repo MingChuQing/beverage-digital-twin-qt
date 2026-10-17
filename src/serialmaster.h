@@ -36,6 +36,7 @@ public:
     Q_INVOKABLE void toggle(const QString &,bool);
     Q_INVOKABLE void applyRecipe();
     Q_INVOKABLE void startDemo();
+    bool startValidatedTrace(const QJsonArray &);
     Q_INVOKABLE void stopDemo();
     Q_INVOKABLE int address(const QString &) const;
     void receiveBytes(const QByteArray &);
@@ -65,6 +66,7 @@ private:
     Task m_current;
     QByteArray m_buffer;
     QString m_portName,m_lastError;
+    QString m_executionLabel="单件工艺发送";
     QStringList m_labels,m_ids,m_frames;
     bool m_logDirty=false;
     qint64 m_logNotifiedAt=-1000;

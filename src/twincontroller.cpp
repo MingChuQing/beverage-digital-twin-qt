@@ -1,5 +1,8 @@
 #include "twincontroller.h"
 #include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -37,6 +40,7 @@ static bool isInteger(const QJsonValue &value,int minimum,int maximum){
     return value.isDouble()&&value.toDouble()==value.toInt()&&value.toInt()>=minimum&&value.toInt()<=maximum;
 }
 TwinController::TwinController(QObject *parent,bool automaticTimer,const QString &root):QObject(parent),m_model(this){
+    if(root.isEmpty())m_activationPath=QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)+"/ai-active.json";
     if(!root.isEmpty())m_configRoot=root;
     else {
         const QString app=QCoreApplication::applicationDirPath();
@@ -50,11 +54,48 @@ TwinController::TwinController(QObject *parent,bool automaticTimer,const QString
     if(automaticTimer)m_timer.start();
 }
 
+bool TwinController::loadCandidateDirectory(const QString &folder){
+    const QString previous=m_candidateDirectory;m_candidateDirectory=folder;
+    if(loadProfile(1))return true;
+    m_candidateDirectory=previous;return false;
+}
+static QString fileDigest(const QString &path){QFile file(path);if(!file.open(QIODevice::ReadOnly))return {};return QString::fromLatin1(QCryptographicHash::hash(file.readAll(),QCryptographicHash::Sha256).toHex());}
+bool TwinController::publishCandidateActivation(const QString &reportPath,bool testing,QString &error){
+    auto report=readObject(reportPath,error);if(!error.isEmpty())return false;
+    QString reviewPath=QFileInfo(reportPath).absolutePath()+"/human_review.json";
+    auto review=readObject(reviewPath,error);
+    if(!error.isEmpty()||review.value("status").toString()!=(testing?"TEST_ONLY":"APPROVED")||review.value("report_sha256").toString()!=fileDigest(reportPath)){error="审核记录与候选不匹配";return false;}
+    QJsonObject activation{{"candidate",m_candidateDirectory},{"candidate_hashes",report.value("candidate_hashes")},
+        {"report",reportPath},{"report_sha256",fileDigest(reportPath)},{"review",reviewPath},{"review_sha256",fileDigest(reviewPath)},{"test_only",testing}};
+    if(m_activationPath.isEmpty()||!QDir().mkpath(QFileInfo(m_activationPath).absolutePath())){error="无法创建配置激活目录";return false;}
+    QSaveFile file(m_activationPath);if(!file.open(QIODevice::WriteOnly)){error=file.errorString();return false;}
+    auto bytes=QJsonDocument(activation).toJson();
+    if(file.write(bytes)!=bytes.size()||!file.commit()){error="无法原子保存配置激活记录";return false;}
+    return true;
+}
+bool TwinController::loadSharedCandidate(){
+    if(m_activationPath.isEmpty()||!QFile::exists(m_activationPath))return true;
+    auto fail=[&](const QString &why){m_loadMessage="拒绝加载共享候选："+why;addLog(m_loadMessage);emit configChanged();return false;};
+    QString error;auto activation=readObject(m_activationPath,error);if(!error.isEmpty())return fail(error);
+    if(activation.value("test_only").toBool()&&!m_allowTestActivation)return fail("测试审核不能用于正常运行");
+    const QString folder=activation.value("candidate").toString(),reportPath=activation.value("report").toString(),reviewPath=activation.value("review").toString();
+    if(folder.isEmpty()||fileDigest(reportPath)!=activation.value("report_sha256").toString()||fileDigest(reviewPath)!=activation.value("review_sha256").toString())return fail("报告 / 审核哈希不一致");
+    auto report=readObject(reportPath,error),review=readObject(reviewPath,error);
+    if(!error.isEmpty()||report.value("status").toString()!="AUTO_PASS"||report.value("candidate_hashes")!=activation.value("candidate_hashes")||
+       review.value("status").toString()!=(activation.value("test_only").toBool()?"TEST_ONLY":"APPROVED")||review.value("candidate_hashes")!=report.value("candidate_hashes")||review.value("report_sha256").toString()!=fileDigest(reportPath))return fail("验证或审核状态不一致");
+    auto hashes=activation.value("candidate_hashes").toObject();if(hashes.isEmpty())return fail("缺少候选哈希清单");
+    for(auto it=hashes.begin();it!=hashes.end();++it){
+        QString relative=QDir::cleanPath(it.key());
+        if(QDir::isAbsolutePath(relative)||relative==".."||relative.startsWith("../")||fileDigest(folder+"/"+relative)!=it.value().toString())return fail("候选文件被修改："+it.key());
+    }
+    if(m_candidateDirectory!=folder||m_profile!=1)return loadCandidateDirectory(folder);
+    return true;
+}
 bool TwinController::loadProfile(int index){
     auto fail=[&](const QString &why){m_loadMessage="加载失败，保留当前配置："+why;addLog(m_loadMessage);emit configChanged();return false;};
     if(index!=0&&index!=1)return fail("配置版本编号无效");
     QString error;
-    const QString folder=m_configRoot+"/recipes/"+(index?"extended":"baseline");
+    const QString folder=index&&!m_candidateDirectory.isEmpty()?m_candidateDirectory:m_configRoot+"/recipes/"+(index?"extended":"baseline");
     auto presentation=readObject(m_configRoot+"/demo_profile.json",error);
     auto visual=readObject(m_configRoot+"/visualization.json",error);
     auto registry=readObject(folder+"/device_registry.json",error).value("devices").toObject();
@@ -324,6 +365,7 @@ void TwinController::advance(double dt){
 }
 bool TwinController::applySerialRecipe(int profile,int flavor,int format){
     if(profile<0||profile>1||flavor<0||flavor>2||format<0||format>(profile?2:1))return false;
+    if(profile==1&&!loadSharedCandidate())return false;
     if(profile!=m_profile&&!loadProfile(profile))return false;
     return selectRecipe(flavor,format);
 }

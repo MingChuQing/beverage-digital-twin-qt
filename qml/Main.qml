@@ -394,7 +394,7 @@ ApplicationWindow {
                 anchors.fill:parent;anchors.leftMargin:18;anchors.rightMargin:18
                 Text {text:bus.serialMode?"数据源：单串口 Modbus RTU / 指令真实接收，设备反馈为虚拟计算":"数据源：内置模拟器 / 未打开串口";color:"#7992aa";font.pixelSize:11}
                 Item {Layout.fillWidth:true}
-                Text {text:"PR 空间映射为示意 · beverage_full / "+(twin.profileIndex?"example5":"example4")+" · v0.3";color:"#7992aa";font.pixelSize:11}
+                Text {text:"PR 空间映射为示意 · 点位读取当前已加载 JSON · v0.4";color:"#7992aa";font.pixelSize:11}
             }
         }
     }

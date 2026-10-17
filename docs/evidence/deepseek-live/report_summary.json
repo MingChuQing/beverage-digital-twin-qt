@@ -1,0 +1,128 @@
+{
+  "status": "AUTO_PASS",
+  "human_review": "PENDING",
+  "normal_runs": 9,
+  "fault_runs": 11,
+  "baseline_six_traces_unchanged": true,
+  "raw_sha256": "56c6724accf1d4023ea1f43ffb34ef624a159656db4fa5a9e24dcacae2dc28a7",
+  "source_commit": "00f0f1ff292a58c8793aa7ab3b2d327c44bf47a9",
+  "scope": "C++ parser/virtual executor + independent Python timed equivalence and process model; no physical I/O during gates.",
+  "api_provider": "DeepSeek actual HTTPS API",
+  "rounds": 1,
+  "automatic_repairs": 0,
+  "new_recipes": [
+    {
+      "recipe": "orange_small",
+      "status": "SUCCESS",
+      "finished_containers": 12,
+      "filled_total_ml": 3000,
+      "stage_counts": {
+        "01": 1,
+        "02": 12,
+        "03": 12,
+        "04": 12,
+        "05": 12,
+        "06": 12,
+        "07": 12,
+        "08": 12,
+        "09": 12,
+        "10": 12,
+        "11": 1,
+        "12": 1
+      },
+      "trace_sha256": "a9e3faebbbcc138a3e7dd9dc8cf80c73686c8f06b43ceae7bea0fbcea81ae246"
+    },
+    {
+      "recipe": "apple_small",
+      "status": "SUCCESS",
+      "finished_containers": 12,
+      "filled_total_ml": 3000,
+      "stage_counts": {
+        "01": 1,
+        "02": 12,
+        "03": 12,
+        "04": 12,
+        "05": 12,
+        "06": 12,
+        "07": 12,
+        "08": 12,
+        "09": 12,
+        "10": 12,
+        "11": 1,
+        "12": 1
+      },
+      "trace_sha256": "7c0f9864c0fcb97dcf8f80f5a2aac29bd3bd0d30071af1067c0aeebe67a87c08"
+    },
+    {
+      "recipe": "grape_small",
+      "status": "SUCCESS",
+      "finished_containers": 12,
+      "filled_total_ml": 3000,
+      "stage_counts": {
+        "01": 1,
+        "02": 12,
+        "03": 12,
+        "04": 12,
+        "05": 12,
+        "06": 12,
+        "07": 12,
+        "08": 12,
+        "09": 12,
+        "10": 12,
+        "11": 1,
+        "12": 1
+      },
+      "trace_sha256": "b3701604bd3ced3e00ef00135d7847d77dc3e3148f83940b79d3d43102ffde70"
+    }
+  ],
+  "cpp": [
+    {
+      "recipe": "orange_family",
+      "status": "PASS",
+      "steps": 15295
+    },
+    {
+      "recipe": "orange_can",
+      "status": "PASS",
+      "steps": 15295
+    },
+    {
+      "recipe": "apple_family",
+      "status": "PASS",
+      "steps": 15295
+    },
+    {
+      "recipe": "apple_can",
+      "status": "PASS",
+      "steps": 15295
+    },
+    {
+      "recipe": "grape_family",
+      "status": "PASS",
+      "steps": 15295
+    },
+    {
+      "recipe": "grape_can",
+      "status": "PASS",
+      "steps": 15295
+    },
+    {
+      "recipe": "orange_small",
+      "status": "PASS",
+      "steps": 15295
+    },
+    {
+      "recipe": "apple_small",
+      "status": "PASS",
+      "steps": 15295
+    },
+    {
+      "recipe": "grape_small",
+      "status": "PASS",
+      "steps": 15295
+    }
+  ],
+  "disclosure": "This record describes one successful actual API session (one round, no repair), not an overall generation success rate. Earlier integration attempts encountered runtime failures and were stopped. Mock-injected failures are tested separately, never labeled actual DeepSeek failures. Native serial tests simulate review controls and record TEST_ONLY.",
+  "local_session_id": "20261018-023347-95916cac",
+  "timezone": "Asia/Shanghai"
+}

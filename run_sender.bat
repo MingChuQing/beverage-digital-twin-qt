@@ -7,4 +7,4 @@ if not exist "%twinExe%" (
   pause
   exit /b 1
 )
-start "" "%twinExe%" --sender --extended --flavor 2 --format 2
+start "" "%twinExe%" --sender

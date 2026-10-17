@@ -13,3 +13,9 @@
 .gitattributes text eol=lf
 # Preserve the imported source snapshots byte-for-byte for source_manifest.json.
 config/recipes/** -text
+ai/vendor/** -text
+ai/engine/** -text
+ai/inputs/** -text
+ai/references/** -text
+tests/fixtures/** -text
+docs/evidence/deepseek-live/raw_response.json -text

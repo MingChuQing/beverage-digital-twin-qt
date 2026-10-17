@@ -16,7 +16,7 @@ SerialMaster::SerialMaster(TwinController *twin,const QJsonObject &config,const 
     if(automatic)m_timer.start();
 }
 int SerialMaster::address(const QString &id) const{return m_registry.value(id).toObject().value("address").toInt();}
-QString SerialMaster::status() const{if(!m_lastError.isEmpty())return m_lastError;if(!connected())return "发送串口未打开";return m_demo?"正在发送单件工艺指令":m_pending?"等待 Modbus 应答":"串口已打开 · 自动轮询设备";}
+QString SerialMaster::status() const{if(!m_lastError.isEmpty())return m_lastError;if(!connected())return "发送串口未打开";return m_demo?m_executionLabel:m_pending?"等待 Modbus 应答":"串口已打开 · 自动轮询设备";}
 void SerialMaster::log(const QString &message){m_logDirty=true;m_frames.prepend(QTime::currentTime().toString("HH:mm:ss.zzz")+" "+message);while(m_frames.size()>100)m_frames.removeLast();}
 bool SerialMaster::openPort(const QString &name,int baud){closePort();m_portName=name.trimmed();m_baud=baud;m_lastError.clear();if(!Rtu::open(m_port,m_portName,baud,m_config.value("serial").toObject(),m_lastError)){log("打开失败："+m_lastError);emit changed();return false;}QSettings settings;settings.setValue("serial/sender_port",m_portName);settings.setValue("serial/sender_baud",baud);log("打开发送串口 "+m_portName);emit changed();return true;}
 void SerialMaster::closePort(){m_port.close();m_test=false;m_jobs.clear();m_pending=false;m_demo=false;m_buffer.clear();m_readyAt=0;emit changed();}
@@ -41,6 +41,7 @@ void SerialMaster::toggle(const QString &id,bool on){coilWrite(id,on);}
 void SerialMaster::applyRecipe(){auto line=m_config.value("line_control").toObject();enqueue(line.value("address").toInt(),16,line.value("profile_register").toInt(),{quint16(m_twin->profileIndex()),quint16(m_twin->flavorIndex()),quint16(m_twin->formatIndex())});}
 void SerialMaster::startDemo(){
     if(!connected()||m_demo||!m_jobs.isEmpty())return;
+    m_executionLabel="单件工艺发送";
     QString error;auto variables=Rtu::object(m_twin->configLocation()+"/system_variables.json",error);if(!error.isEmpty()){failed(error);return;}
     m_demo=true;applyRecipe();lineWrite(4,3);lineWrite(4,1);
     auto recipe=m_twin->recipe();auto points=variables.value("production_points").toArray();
@@ -61,6 +62,36 @@ void SerialMaster::startDemo(){
     lineWrite(3,10);coilWrite("CIPValve",true,700);coilWrite("CIPValve",false);
     lineWrite(3,11);move(recipe.value("home_point").toInt());log("开始单件串口工艺 · "+m_twin->recipeCaption());emit changed();
 }
+bool SerialMaster::startValidatedTrace(const QJsonArray &jobs){
+    if(!connected()||m_demo||!m_jobs.isEmpty()||jobs.isEmpty()||jobs.size()>50000)return false;
+    QQueue<Task> prepared;
+    for(const auto &value:jobs){
+        auto job=value.toObject();const QString kind=job.value("kind").toString();
+        if(kind=="wait"){
+            int duration=job.value("ms").toInt(-1);if(duration<0||duration>200000)return false;
+            prepared.enqueue({{},duration});
+        }else if(kind=="stage"){
+            int stage=job.value("value").toInt(-1);if(stage<0||stage>11)return false;
+            auto control=m_config.value("line_control").toObject();
+            QByteArray frame(1,char(control.value("address").toInt()));frame+=char(6);frame+=Rtu::words({quint16(control.value("stage_register").toInt()),quint16(stage)});
+            prepared.enqueue({Rtu::seal(frame),0});
+        }else if(kind=="modbus"){
+            const QString device=job.value("device").toString();if(!m_registry.contains(device))return false;
+            auto pdu=QByteArray::fromHex(job.value("pdu").toString().toLatin1());
+            if(pdu.size()!=5||(quint8(pdu[0])!=5&&quint8(pdu[0])!=6))return false;
+            const int reg=Rtu::word(pdu,1),number=Rtu::word(pdu,3);
+            auto definition=m_config.value("devices").toObject().value(device).toObject();
+            if(!definition.value(quint8(pdu[0])==5?"write_coils":"write_registers").toObject().contains(QString::number(reg)))return false;
+            if(quint8(pdu[0])==5&&number!=0&&number!=0xff00)return false;
+            if(reg==0x6002&&(number<16||number>31))return false;
+            QByteArray frame(1,char(address(device)));frame+=pdu;prepared.enqueue({Rtu::seal(frame),0});
+        }else return false;
+    }
+    m_demo=true;applyRecipe();lineWrite(4,3);lineWrite(4,1);
+    m_executionLabel="已验证配置写轨迹回放";
+    while(!prepared.isEmpty())m_jobs.enqueue(prepared.dequeue());
+    log("开始已验证 JSON 的写轨迹回放（工艺等待加速；应答逐条校验）");emit changed();return true;
+}
 void SerialMaster::stopDemo(){m_jobs.clear();m_current.delay=0;m_demo=false;m_readyAt=0;if(connected())lineWrite(4,0);emit changed();}
 void SerialMaster::dispatch(const Task &task,bool heartbeat){
     m_current=task;m_pending=true;m_heartbeat=heartbeat;m_sentAt=m_clock.elapsed();
@@ -75,8 +106,8 @@ void SerialMaster::pump(){
     if(!connected())return;
     const qint64 now=m_clock.elapsed();
     if(m_pending){if(now-m_sentAt>m_config.value("serial").toObject().value("response_timeout_ms").toInt())failed("应答超时：检查对端串口、接线及波特率");return;}
-    if(!m_jobs.isEmpty()&&now>=m_readyAt){dispatch(m_jobs.dequeue());return;}
-    if(m_demo&&m_jobs.isEmpty()&&now>=m_readyAt){m_demo=false;log("单件工艺发送完成");m_logDirty=false;emit framesChanged();emit changed();emit completedDemo();}
+    if(!m_jobs.isEmpty()&&now>=m_readyAt){auto task=m_jobs.dequeue();if(task.frame.isEmpty()){m_readyAt=now+task.delay;return;}dispatch(task);return;}
+    if(m_demo&&m_jobs.isEmpty()&&now>=m_readyAt){m_demo=false;log(m_executionLabel+"完成");m_logDirty=false;emit framesChanged();emit changed();emit completedDemo();}
     if(now-m_lastPoll>=90&&now>=m_sentAt+5){m_lastPoll=now;QString id=m_ids.value(m_pollIndex++%m_ids.size());QByteArray request(1,char(address(id)));request+=char(4);request+=Rtu::words({0,1});dispatch({Rtu::seal(request),0},true);}
 }
 void SerialMaster::receiveBytes(const QByteArray &bytes){

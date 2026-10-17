@@ -18,4 +18,4 @@ if /I "%receiverPort%"=="%senderPort%" (
 )
 start "" "%twinExe%" --port "%receiverPort%" --baud 115200
 timeout /t 1 /nobreak >nul
-start "" "%twinExe%" --sender --extended --flavor 2 --format 2 --port "%senderPort%" --baud 115200
+start "" "%twinExe%" --sender --port "%senderPort%" --baud 115200

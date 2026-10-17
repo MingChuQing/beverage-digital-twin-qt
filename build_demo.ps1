@@ -1,7 +1,9 @@
 param(
     [string]$QtRoot = 'D:\Qt\Qt5.14.0\5.14.0\mingw73_64',
     [string]$MinGWBin = 'D:\Qt\Qt5.14.0\Tools\mingw730_64\bin',
-    [switch]$Deploy
+    [switch]$Deploy,
+    [string]$PythonExecutable = (Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'),
+    [string]$AiCompiler = ''
 )
 $ErrorActionPreference = 'Stop'
 $projectDir = $PSScriptRoot
@@ -18,6 +20,17 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'qmake failed' }
     & (Join-Path $MinGWBin 'mingw32-make.exe') '-j4'
     if ($LASTEXITCODE -ne 0) { throw 'Compilation failed' }
+    if (-not (Test-Path -LiteralPath $PythonExecutable)) {
+        $PythonExecutable = (Get-Command python -ErrorAction Stop).Source
+    }
+    if (-not $AiCompiler) {
+        $workspaceZig = Join-Path (Split-Path $projectDir -Parent) 'tmp\beverage-cpp-toolchain\zig-windows-x86_64-0.13.0\zig.exe'
+        if (Test-Path -LiteralPath $workspaceZig) { $AiCompiler = $workspaceZig }
+    }
+    $aiArguments = @((Join-Path $projectDir 'tools\prepare_ai.py'))
+    if ($AiCompiler) { $aiArguments += @('--compiler',$AiCompiler) }
+    & $PythonExecutable @aiArguments
+    if ($LASTEXITCODE -ne 0) { throw 'AI runtime preparation failed' }
     if ($Deploy) {
         $distDir = Join-Path $projectDir 'dist'
         New-Item -ItemType Directory -Force -Path $distDir | Out-Null
@@ -38,6 +51,12 @@ try {
             Remove-Item -LiteralPath $resolvedStage -Recurse -Force
         }
         Copy-Item -LiteralPath (Join-Path $projectDir 'README.md') -Destination (Join-Path $distDir 'README.md')
+        Copy-Item -LiteralPath (Join-Path $projectDir 'LICENSE') -Destination (Join-Path $distDir 'LICENSE')
+        foreach ($aiFolder in @('ai','runtime')) {
+            $aiDestination = Join-Path $distDir $aiFolder
+            New-Item -ItemType Directory -Force -Path $aiDestination | Out-Null
+            Get-ChildItem -LiteralPath (Join-Path $buildDir ('bin\' + $aiFolder)) | Copy-Item -Destination $aiDestination -Recurse -Force
+        }
         Get-ChildItem -LiteralPath $projectDir -Filter 'run_*.bat' -File | Copy-Item -Destination $distDir -Force
         if (Test-Path -LiteralPath (Join-Path $projectDir 'docs')) { Copy-Item -LiteralPath (Join-Path $projectDir 'docs') -Destination $distDir -Recurse -Force }
         Get-ChildItem -LiteralPath $projectDir -Filter 'serial-*.png' -File | Copy-Item -Destination $distDir -Force

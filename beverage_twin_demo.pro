@@ -4,8 +4,8 @@ CONFIG += c++14
 win32-g++:CONFIG += no_moc_predefs
 TEMPLATE = app
 TARGET = BeverageTwinDemo
-SOURCES += src/main.cpp src/twincontroller.cpp src/serialplant.cpp src/serialmaster.cpp src/serialtests.cpp
-HEADERS += src/twincontroller.h src/serialplant.h src/serialmaster.h
+SOURCES += src/main.cpp src/twincontroller.cpp src/serialplant.cpp src/serialmaster.cpp src/serialtests.cpp src/aicontroller.cpp
+HEADERS += src/twincontroller.h src/serialplant.h src/serialmaster.h src/aicontroller.h
 RESOURCES += resources.qrc
 DISTFILES += $$files(qml/*.qml) $$files(config/*.json, true)
 # Explicit relative dependencies also work when the source directory has Chinese characters.

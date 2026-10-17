@@ -1,4 +1,10 @@
-# 饮料灌装数字孪生演示版 v0.3
+# 饮料灌装数字孪生演示版 v0.4
+
+v0.4加入 **真实 DeepSeek API → JSON增量 → 原仓库C++检查 → 完整工艺仿真 → 失败反馈与修正 → 人工语义审核 → 应用候选 → 串口驱动3D**。双击 `run_ai_demo.bat`，发送COM3、接收COM10；在发送端输入Key，使用默认自然语言需求开始演示。Key不保存。
+
+本版AI案例限定为**三种口味同时增加250mL小瓶装**。每轮原始输出、差异、错误、实际模型与验证报告均保留；九个正常配方和十一个预设故障全部通过后才能审核应用。串口端为已验证写轨迹回放，PPT首瓶片段和50倍工艺等待加速明确标注；未实现原引擎的在线条件解释。完整操作、边界和测试见 [DeepSeek论文演示说明](docs/DEEPSEEK_DEMO.md)。
+
+![DeepSeek真实输出的历史回放；截图中的控件审核为自动化测试，日志明确标注](ai-sender.png)
 
 可运行的 **C++ / Qt 5.14.0 / QML / Qt Quick 3D** 桌面程序。以原项目 `beverage_full` 案例的 JSON 配置驱动配方、容量、生产点、工艺层级和设备目录：原配置为 **三口味 × 两规格，共 6 个配方**；扩展配置为三种口味同时新增 250 mL 小瓶装，共 **9 个配方**。
 
@@ -12,13 +18,13 @@ v0.3 增加 **单串口 Modbus RTU 从站**和独立的 Qt 指令发送窗口。
 
 ![Modbus 指令发送端](serial-sender.png)
 
-这是独立的数字孪生演示工程。生产线配置来源于 [industrial_config_engine](https://github.com/MingChuQing/industrial_config_engine) 的案例快照；论文文件和原引擎源码由原项目管理。
+这是独立的数字孪生演示工程。生产线配置来源于 [industrial_config_engine](https://github.com/MingChuQing/industrial_config_engine) 的案例快照；本版在 `ai/` 收录所需原引擎与验证器，注明来源、提交和冻结输入哈希。论文资料仍由原项目管理。
 
 ## 直接运行
 
 首次从 GitHub 克隆源码后，先按下方“构建”章节编译并打包，生成 `dist` 运行目录。
 
-串口联调使用 `run_serial_test.bat`；也可以分别运行 `run_receiver.bat` 与 `run_sender.bat`，选择端口并打开。直接运行 `dist/BeverageTwinDemo.exe` 进入串口接收模式。离线演示使用 `run_demo.bat`。保留整个 `dist` 文件夹，其中包含 Qt / MinGW DLL、QML 插件和外部 JSON 配置，无需下载三维模型或联网。
+串口联调使用 `run_serial_test.bat`；也可以分别运行 `run_receiver.bat` 与 `run_sender.bat`，选择端口并打开。直接运行 `dist/BeverageTwinDemo.exe` 进入串口接收模式。离线演示使用 `run_demo.bat`。保留整个 `dist` 文件夹，其中包含 Qt / MinGW DLL、QML 插件、Python标准库运行时、原引擎探针和外部 JSON 配置。离线与串口回放无需联网，DeepSeek生成需要联网。
 
 `run_demo.bat` 自动开始离线演示；串口模式等待外部主站命令。截图中的 Qt Creator 4.13.1 是 IDE 版本；本机实际使用的构建 Kit 为 Qt 5.14.0 / MinGW 7.3 / 64 位。
 
@@ -104,8 +110,14 @@ python .\tools\verify_demo.py --gui --profile extended --flavor 1 --format 1
 - `qml/LineScene.qml`：三个固定灌装头、规格工位、运动与容器显示。
 - `src/serialplant.*`：单串口多站号 RTU 从站、CRC / 分包校验、命令驱动的虚拟设备与通信质量。
 - `src/serialmaster.*`、`qml/Sender.qml`：独立主站程序、单件联调工艺、手动命令与应答匹配。
+- `src/aicontroller.*`、`qml/AiPanel.qml`、`ai/pipeline.py`：真实DeepSeek调用、逐轮验证/修正、人工审核、原子激活、候选轨迹回放。
+- `ai/engine/`、`ai/vendor/`、`ai/provenance.json`：原引擎与验证器、来源提交、冻结工程输入。
 - `tools/verify_serial.py`：协议回归及 COM10 / COM3 双进程 GUI 实测。
 - `tools/export_single_bus_case.py`：为原配置引擎导出共用站号的单总线案例。
 - `tools/deploy_runtime.ps1`：复制 Qt / QML 插件及 PE 依赖形成可移动运行目录。
 
 串口模式已接入真实串口 / Modbus RTU，虚拟设备接收命令、计算动作和传感器状态并回传应答。当前不是物理设备采集器；原引擎完整 L1/L2 仍由外部控制程序执行，离线模式保留原模拟工艺。Qt / MinGW 动态运行库许可保留在 `dist/licenses`。
+
+2026-10-18实测：真实DeepSeek会话一轮通过9配方/11预置故障检查；随后两个原生Qt窗口在COM3/COM10完成首瓶片段，396次有效应答、CRC错误0、出料1件并回零。AI本次采用的灌装点42、成品点48也已同步到接收端卡片。审核控件的自动化测试明确标记`TEST_ONLY`。详见[无密钥实测记录](docs/evidence/v04-verification.json)和[原始API输出](docs/evidence/deepseek-live/raw_response.json)；这不是生成成功率统计。
+
+本项目采用GPL-3.0-or-later，见[LICENSE](LICENSE)；nlohmann/json保留MIT许可，Python和Qt运行库保留各自许可。
