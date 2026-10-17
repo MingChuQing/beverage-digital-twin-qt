@@ -61,10 +61,12 @@ if options.hardware and all(item["passed"] for item in results):
             time.sleep(1.5)
             run("independent-sender-gui", ["--sender", "--extended", "--flavor", "2", "--format", "2",
                 "--port", options.sender_port, "--baud", "115200", "--sender-demo-test", "--capture", str(sender_capture)])
+            if not results[-1]["passed"]:
+                receiver.terminate()
             stdout, stderr = receiver.communicate(timeout=70)
             result("independent-receiver-gui", subprocess.CompletedProcess(receiver.args, receiver.returncode, stdout, stderr), receiver_args)
             for path in [receiver_capture, sender_capture]:
-                fresh = path.exists() and path.stat().st_mtime_ns != previous[path]
+                fresh = path.exists() and path.stat().st_mtime_ns != previous[path] and path.stat().st_size > 20000
                 results.append({"name": "capture-" + path.stem, "passed": fresh, "path": str(path)})
         finally:
             if receiver.poll() is None:

@@ -2,6 +2,7 @@
 #include "serialmaster.h"
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QSet>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -77,12 +78,15 @@ int main(int argc,char **argv){
     if(!window)return 4;
     qInfo()<<"Demo window ready"<<window->size();
     if(args.contains("--sender-demo-test")){
+        QObject::connect(&master,&SerialMaster::changed,&app,[&]{if(master.failures()>0){qCritical().noquote()<<"FAIL: sender request"<<master.status()<<master.frames().mid(0,8).join('\n');app.exit(25);}});
         QTimer::singleShot(500,&app,[&]{master.startDemo();});
-        QObject::connect(&master,&SerialMaster::completedDemo,&app,[&]{QTimer::singleShot(250,&app,[&]{
-            QString path=optionText("--capture",QString());bool saved=path.isEmpty()||window->grabWindow().save(path);
+        QObject::connect(&master,&SerialMaster::completedDemo,&app,[&]{
+            QString path=optionText("--capture",QString());QImage shot=window->grabWindow();QSet<QRgb> colors;
+            if(!shot.isNull())for(int y=0;y<shot.height();y+=17)for(int x=0;x<shot.width();x+=17)colors.insert(shot.pixel(x,y));
+            bool saved=path.isEmpty()||(!shot.isNull()&&colors.size()>8&&shot.save(path));
             bool ok=master.failures()==0&&master.acknowledgements()>60&&qmlWarnings.isEmpty()&&saved;
             qInfo().noquote()<<(ok?"PASS: independent sender UI, real RTU requests and matching replies":"FAIL: sender UI test")<<"ACK"<<master.acknowledgements()<<"errors"<<master.failures()<<qmlWarnings.join('\n');app.exit(ok?0:21);
-        });});
+        });
         QTimer::singleShot(90000,&app,[&]{qCritical()<<"FAIL: sender timed out"<<master.status();app.exit(22);});
     }
     if(args.contains("--receiver-serial-test")){

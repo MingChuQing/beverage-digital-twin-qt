@@ -4,6 +4,7 @@
 #include <QTime>
 #include <QJsonArray>
 #include <algorithm>
+#include <QDebug>
 
 SerialMaster::SerialMaster(TwinController *twin,const QJsonObject &config,const QJsonObject &registry,bool automatic):m_twin(twin),m_config(config),m_registry(registry){
     auto settings=config.value("serial").toObject();m_portName=QSettings().value("serial/sender_port",settings.value("sender_port").toString()).toString();m_baud=QSettings().value("serial/sender_baud",settings.value("baud_rate").toInt()).toInt();
@@ -19,7 +20,7 @@ QString SerialMaster::status() const{if(!m_lastError.isEmpty())return m_lastErro
 void SerialMaster::log(const QString &message){m_logDirty=true;m_frames.prepend(QTime::currentTime().toString("HH:mm:ss.zzz")+" "+message);while(m_frames.size()>100)m_frames.removeLast();}
 bool SerialMaster::openPort(const QString &name,int baud){closePort();m_portName=name.trimmed();m_baud=baud;m_lastError.clear();if(!Rtu::open(m_port,m_portName,baud,m_config.value("serial").toObject(),m_lastError)){log("打开失败："+m_lastError);emit changed();return false;}QSettings settings;settings.setValue("serial/sender_port",m_portName);settings.setValue("serial/sender_baud",baud);log("打开发送串口 "+m_portName);emit changed();return true;}
 void SerialMaster::closePort(){m_port.close();m_test=false;m_jobs.clear();m_pending=false;m_demo=false;m_buffer.clear();m_readyAt=0;emit changed();}
-void SerialMaster::failed(const QString &message){++m_failures;m_lastError=message;m_jobs.clear();m_demo=false;m_pending=false;m_buffer.clear();m_readyAt=m_clock.elapsed()+1000;log(message+"；已停止发送队列");emit changed();}
+void SerialMaster::failed(const QString &message){qWarning().noquote()<<"RTU request failure:"<<message<<"TX"<<m_current.frame.toHex()<<"RX buffer"<<m_buffer.toHex();++m_failures;m_lastError=message;m_jobs.clear();m_demo=false;m_pending=false;m_buffer.clear();m_readyAt=m_clock.elapsed()+1000;log(message+"；已停止发送队列");emit changed();}
 void SerialMaster::enqueue(int unit,int fc,int reg,const QList<quint16> &values,int delay){
     if(!connected()){m_lastError="请先打开发送串口";emit changed();return;}if(m_jobs.size()>=256){failed("发送队列已满");return;}
     QByteArray frame(1,char(unit));frame.append(char(fc));frame+=Rtu::words({quint16(reg)});
@@ -75,7 +76,7 @@ void SerialMaster::pump(){
     const qint64 now=m_clock.elapsed();
     if(m_pending){if(now-m_sentAt>m_config.value("serial").toObject().value("response_timeout_ms").toInt())failed("应答超时：检查对端串口、接线及波特率");return;}
     if(!m_jobs.isEmpty()&&now>=m_readyAt){dispatch(m_jobs.dequeue());return;}
-    if(m_demo&&m_jobs.isEmpty()&&now>=m_readyAt){m_demo=false;log("单件工艺发送完成");emit completedDemo();emit changed();}
+    if(m_demo&&m_jobs.isEmpty()&&now>=m_readyAt){m_demo=false;log("单件工艺发送完成");m_logDirty=false;emit framesChanged();emit changed();emit completedDemo();}
     if(now-m_lastPoll>=90&&now>=m_sentAt+5){m_lastPoll=now;QString id=m_ids.value(m_pollIndex++%m_ids.size());QByteArray request(1,char(address(id)));request+=char(4);request+=Rtu::words({0,1});dispatch({Rtu::seal(request),0},true);}
 }
 void SerialMaster::receiveBytes(const QByteArray &bytes){

@@ -40,6 +40,7 @@ try {
         Copy-Item -LiteralPath (Join-Path $projectDir 'README.md') -Destination (Join-Path $distDir 'README.md')
         Get-ChildItem -LiteralPath $projectDir -Filter 'run_*.bat' -File | Copy-Item -Destination $distDir -Force
         if (Test-Path -LiteralPath (Join-Path $projectDir 'docs')) { Copy-Item -LiteralPath (Join-Path $projectDir 'docs') -Destination $distDir -Recurse -Force }
+        Get-ChildItem -LiteralPath $projectDir -Filter 'serial-*.png' -File | Copy-Item -Destination $distDir -Force
         $licenseDir = Join-Path $distDir 'licenses'
         New-Item -ItemType Directory -Force -Path $licenseDir | Out-Null
         $qtSource = Join-Path (Split-Path $QtRoot -Parent) 'Src\qtbase'
